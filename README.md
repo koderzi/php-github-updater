@@ -12,7 +12,7 @@ Before using this class, you need to generate a personal access token on GitHub.
 
 To use this class, follow these steps:
 
-- Include the update.php file in your project.
+- Include the update.php file in your project root directory.
 - Initialize the GitUpdate class to start the update process. Use the following parameters:
 
 ```
