@@ -14,8 +14,9 @@ To use this class, follow these steps:
 
 - Include the update.php file in your project.
 - Initialize the GitUpdate class to start the update process. Use the following parameters:
+- Copy code
 ```
-Copy codenew GitUpdate($username, $repository, $token, $version, $admin, $mailer)
+new GitUpdate($username, $repository, $token, $version, $admin, $mailer)
 ```
 
 ### $username: Your GitHub username.
