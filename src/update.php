@@ -1,5 +1,7 @@
 <?php
 
+namespace FizieCheMi\PhpGitHubUpdater;
+
 final class GitUpdate
 {
     private $username;
@@ -12,7 +14,18 @@ final class GitUpdate
     private $mailer;
     private $log = [];
 
-    public function __construct($username, $repository, $token, $version, $admin, $mailer)
+    /**
+     * Constructs a new instance of the class and starts the update process for the provided version.
+     *
+     * @param string $username Your GitHub username.
+     * @param string $repository The name of your GitHub repository.
+     * @param string $token The personal access token you generated earlier.
+     * @param string $version The current version number of your project.
+     * @param string $admin The email address of the admin who will receive an email in case of update failure.
+     * @param string $mailer The email address that the email will be sent from.
+     * @return void
+     */
+    public function __construct(string $username,string $repository,string $token,string $version,string $admin,string $mailer)
     {
         $this->username = $username;
         $this->repository = $repository;
