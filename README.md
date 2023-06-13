@@ -19,12 +19,12 @@ To use this class, follow these steps:
 new GitUpdate($username, $repository, $token, $version, $admin, $mailer)
 ```
 
-* __$username__: Your GitHub username.
-* __$repository__: The name of your GitHub repository.
-* __$token__: The personal access token you generated earlier.
-* __$version__: The current version number of your project.
-* __$admin__: The email address of the admin who will receive an email in case of update failure.
-* __$mailer__: The email address that the email will be sent from.
+>- __$username__: Your GitHub username.
+>- __$repository__: The name of your GitHub repository.
+>- __$token__: The personal access token you generated earlier.
+>- __$version__: The current version number of your project.
+>- __$admin__: The email address of the admin who will receive an email in case of update failure.
+>- __$mailer__: The email address that the email will be sent from.
 
 If a new release is available, the class will update your project automatically.
 
