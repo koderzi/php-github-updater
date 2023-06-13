@@ -1,6 +1,6 @@
 <?php
 
-final class NexusUpdate
+final class GitUpdate
 {
     private $username;
     private $repository;
