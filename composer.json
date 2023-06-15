@@ -1,12 +1,19 @@
 {
-    "name": "fiziechemi/php-github-updater",
-    "description": "PHP GitHub Release Updater ",
+    "name": "koderzi/php-github-updater",
+    "description": "PHP GitHub Release Updater",
     "type": "library",
     "license": "MIT",
     "require": {},
     "autoload": {
         "psr-4": {
-            "FizieCheMi\\PhpGitHubUpdater\\": "src/"
+            "KoderZi\\PhpGitHubUpdater\\": ""
+        }
+    },
+    "extra": {
+        "installer-paths": {
+            "./": [
+                "koderzi/php-github-updater"
+            ]
         }
     }
 }

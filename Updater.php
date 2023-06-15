@@ -1,8 +1,8 @@
 <?php
 
-namespace FizieCheMi\PhpGitHubUpdater;
+namespace KoderZi\PhpGitHubUpdater;
 
-final class GitUpdate
+final class Updater
 {
     private $username;
     private $repository;
