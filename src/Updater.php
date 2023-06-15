@@ -305,14 +305,14 @@ final class Updater
     private function Upgrade()
     {
         sleep(10);
-        $plugin_paths = $this->MapPath($this->dir, ['path' => [$this->dir . '/.git', $this->dir . '/update', $this->dir . '/update.lock', $this->dir.'/vendor'], 'filename' => ['.gitignore']]);
+        $plugin_paths = $this->MapPath($this->dir, ['path' => [$this->dir . '/.git', $this->dir . '/update', $this->dir . '/update.lock', $this->dir.'/vendor', $this->dir.'/composer.phar'], 'filename' => ['.gitignore']]);
         $this->log[] = [date("Y-m-d H:i:s"), "Plugin list:\n" . json_encode($plugin_paths, JSON_PRETTY_PRINT)];
 
         $plugin_relative_paths = array_map(function ($plugin_path) {
             return substr_replace($plugin_path, '', 0, strlen($this->dir));
         }, $plugin_paths);
 
-        $upgrade_paths = $this->MapPath($this->dir . "/update/extract/tmp_{$this->repository}", ['path' => [$this->dir . '/.git', $this->dir . '/update.lock', $this->dir.'/vendor'], 'filename' => ['.gitignore']]);
+        $upgrade_paths = $this->MapPath($this->dir . "/update/extract/tmp_{$this->repository}", ['path' => [$this->dir . '/.git', $this->dir . '/update.lock', $this->dir.'/vendor', $this->dir.'/composer.phar'], 'filename' => ['.gitignore']]);
         $this->log[] = [date("Y-m-d H:i:s"), "Upgrade list:\n" . json_encode($upgrade_paths, JSON_PRETTY_PRINT)];
 
         $upgrade_relative_paths = array_map(function ($upgrade_path) {
