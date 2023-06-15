@@ -27,8 +27,8 @@ This will download the package and its dependencies and add them to your vendor 
 ```
 If you're using a framework or other autoloading mechanism, you may not need to include this file manually.
 To use this class with direct download, follow these steps:
-- Download the Updater.php file from the repository.
-- Put the Updater.php file in your project's root directory.
+- Retrieve the Updater.php file from the src directory in the repository.
+- Put the Updater.php file in your project's directory.
 - include the file to your project's to load the class.
 
 ## Usage

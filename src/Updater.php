@@ -2,6 +2,8 @@
 
 namespace KoderZi\PhpGitHubUpdater;
 
+use ZipArchive;
+
 final class Updater
 {
     private $username;
@@ -12,6 +14,7 @@ final class Updater
     private $zip_url;
     private $admin;
     private $mailer;
+    private $dir;
     private $log = [];
 
     /**
@@ -25,7 +28,7 @@ final class Updater
      * @param string $mailer The email address that the email will be sent from.
      * @return void
      */
-    public function __construct(string $username,string $repository,string $token,string $version,string $admin,string $mailer)
+    public function __construct(string $username, string $repository, string $token, string $version, string $admin, string $mailer)
     {
         $this->username = $username;
         $this->repository = $repository;
@@ -33,11 +36,15 @@ final class Updater
         $this->version = $version;
         $this->admin = $admin;
         $this->mailer = $mailer;
+        $this->dir = getcwd();
 
         if (!$this->Update()) {
             $this->Mail();
         }
         $this->Log();
+        if (class_exists('Composer\Autoload\ClassLoader')) {
+            exec('composer install -d ' . getcwd());
+        }
     }
 
     private function Log()
@@ -45,7 +52,7 @@ final class Updater
         $log = implode("\n", array_map(function ($entry) {
             return "{$entry[0]}: {$entry[1]}";
         }, $this->log));
-        file_put_contents(__DIR__ . "/update/log/" . date("Y-m-d H:i:s") . ".txt", $log);
+        file_put_contents($this->dir . "/update/log/" . date("Y-m-d H:i:s") . ".txt", $log);
     }
 
     private function Mail()
@@ -105,7 +112,7 @@ final class Updater
             return false;
         }
         for ($i = 0; $i < 3; $i++) {
-            if (!file_exists(__DIR__ . '/update.lock') && file_put_contents(__DIR__ . '/update.lock', '') !== false) {
+            if (!file_exists($this->dir . '/update.lock') && file_put_contents($this->dir . '/update.lock', '') !== false) {
                 $this->log[] = [date("Y-m-d H:i:s"), "Update lock acquired."];
                 return true;
             }
@@ -121,10 +128,10 @@ final class Updater
             $this->log[] = [date("Y-m-d H:i:s"), "Cleanup process failed."];
         }
         $this->log[] = [date("Y-m-d H:i:s"), "Releasing update lock."];
-        if (!file_exists(__DIR__ . '/update.lock')) {
+        if (!file_exists($this->dir . '/update.lock')) {
             $this->log[] = [date("Y-m-d H:i:s"), "Update lock unavailable."];
         }
-        if ($this->Delete(__DIR__ . '/update.lock')) {
+        if ($this->Delete($this->dir . '/update.lock')) {
             $this->log[] = [date("Y-m-d H:i:s"), "Update lock released."];
         }
         return;
@@ -147,9 +154,9 @@ final class Updater
     private function CreateFolder(string $FolderName, string $FolderPath = '')
     {
         if ($FolderPath == '') {
-            $download_path = __DIR__ . '/' . $FolderName;
+            $download_path = $this->dir . '/' . $FolderName;
         } else {
-            $download_path = __DIR__ . '/' . trim($FolderPath, '/') . '/' . $FolderName;
+            $download_path = $this->dir . '/' . trim($FolderPath, '/') . '/' . $FolderName;
         }
         if (true !== is_dir($download_path)) {
             $FolderName = ucfirst($FolderName);
@@ -222,7 +229,7 @@ final class Updater
                 return false;
             }
         } else {
-            $download_file = __DIR__ . "/update/update.zip";
+            $download_file = $this->dir . "/update/update.zip";
             if (file_exists($download_file)) {
                 $this->log[] = [date("Y-m-d H:i:s"), "Deleting existing zip file. $download_file"];
                 if (!$this->Delete($download_file)) {
@@ -267,8 +274,8 @@ final class Updater
 
     private function Extract()
     {
-        $download_file = __DIR__ . "/update/update.zip";
-        $extract_path = __DIR__ . "/update/extract";
+        $download_file = $this->dir . "/update/update.zip";
+        $extract_path = $this->dir . "/update/extract";
         if (file_exists($extract_path)) {
             $this->log[] = [date("Y-m-d H:i:s"), "Deleting existing extract folder. $extract_path"];
             if (!$this->Delete($extract_path)) {
@@ -298,23 +305,23 @@ final class Updater
     private function Upgrade()
     {
         sleep(10);
-        $plugin_paths = $this->MapPath(__DIR__, ['path' => [__DIR__ . '/.git', __DIR__ . '/update', __DIR__ . '/update.lock'], 'filename' => ['.gitignore']]);
+        $plugin_paths = $this->MapPath($this->dir, ['path' => [$this->dir . '/.git', $this->dir . '/update', $this->dir . '/update.lock', $this->dir.'/vendor'], 'filename' => ['.gitignore']]);
         $this->log[] = [date("Y-m-d H:i:s"), "Plugin list:\n" . json_encode($plugin_paths, JSON_PRETTY_PRINT)];
 
         $plugin_relative_paths = array_map(function ($plugin_path) {
-            return substr_replace($plugin_path, '', 0, strlen(__DIR__));
+            return substr_replace($plugin_path, '', 0, strlen($this->dir));
         }, $plugin_paths);
 
-        $upgrade_paths = $this->MapPath(__DIR__ . "/update/extract/tmp_{$this->repository}", ['path' => [__DIR__ . '/.git', __DIR__ . '/update.lock'], 'filename' => ['.gitignore']]);
+        $upgrade_paths = $this->MapPath($this->dir . "/update/extract/tmp_{$this->repository}", ['path' => [$this->dir . '/.git', $this->dir . '/update.lock', $this->dir.'/vendor'], 'filename' => ['.gitignore']]);
         $this->log[] = [date("Y-m-d H:i:s"), "Upgrade list:\n" . json_encode($upgrade_paths, JSON_PRETTY_PRINT)];
 
         $upgrade_relative_paths = array_map(function ($upgrade_path) {
-            return substr_replace($upgrade_path, '', 0, strlen(__DIR__ . "/update/extract/tmp_{$this->repository}"));
+            return substr_replace($upgrade_path, '', 0, strlen($this->dir . "/update/extract/tmp_{$this->repository}"));
         }, $upgrade_paths);
 
         foreach ($upgrade_relative_paths as $upgrade_relative_path) {
-            $upgrade_path = __DIR__ . "/update/extract/tmp_{$this->repository}$upgrade_relative_path";
-            $plugin_path = __DIR__ . "$upgrade_relative_path";
+            $upgrade_path = $this->dir . "/update/extract/tmp_{$this->repository}$upgrade_relative_path";
+            $plugin_path = $this->dir . "$upgrade_relative_path";
             if (is_dir($upgrade_path)) {
                 if (!is_dir($plugin_path)) {
                     if (mkdir($plugin_path, 0700, true)) {
@@ -349,7 +356,7 @@ final class Updater
         $delete_relative_paths = array_values(array_diff($plugin_relative_paths, $upgrade_relative_paths));
 
         foreach ($delete_relative_paths as $delete_relative_path) {
-            if (is_dir(__DIR__ . $delete_relative_path)) {
+            if (is_dir($this->dir . $delete_relative_path)) {
                 foreach ($delete_relative_paths as $_delete_relative_key => $_delete_relative_path) {
                     if ($delete_relative_path != $_delete_relative_path && substr($_delete_relative_path, 0, strlen($delete_relative_path)) == $delete_relative_path) {
                         unset($delete_relative_paths[$_delete_relative_key]);
@@ -359,7 +366,7 @@ final class Updater
         }
 
         $delete_paths = array_values(array_map(function ($delete_relative_path) {
-            return __DIR__ . $delete_relative_path;
+            return $this->dir . $delete_relative_path;
         }, $delete_relative_paths));
         $this->log[] = [date("Y-m-d H:i:s"), "Delete list:\n" . json_encode($delete_paths, JSON_PRETTY_PRINT)];
 
@@ -376,12 +383,12 @@ final class Updater
 
     private function CleanUp()
     {
-        if (file_exists(__DIR__ . "/update/extract") && !$this->Delete(__DIR__ . "/update/extract")) {
-            $this->log[] = [date("Y-m-d H:i:s"), "Cleanup failed. " . __DIR__ . "/update/extract"];
+        if (file_exists($this->dir . "/update/extract") && !$this->Delete($this->dir . "/update/extract")) {
+            $this->log[] = [date("Y-m-d H:i:s"), "Cleanup failed. " . $this->dir . "/update/extract"];
             return false;
         };
-        if (file_exists(__DIR__ . "/update/update.zip") && !$this->Delete(__DIR__ . "/update/update.zip")) {
-            $this->log[] = [date("Y-m-d H:i:s"), "Cleanup failed. " . __DIR__ . "/update/update.zip"];
+        if (file_exists($this->dir . "/update/update.zip") && !$this->Delete($this->dir . "/update/update.zip")) {
+            $this->log[] = [date("Y-m-d H:i:s"), "Cleanup failed. " . $this->dir . "/update/update.zip"];
             return false;
         };
         $this->log[] = [date("Y-m-d H:i:s"), "Cleanup completed."];
@@ -392,7 +399,7 @@ final class Updater
     {
         $this->log[] = [date("Y-m-d H:i:s"), "Update started."];
         if (!$this->Lock()) {
-            if (file_exists(__DIR__ . "/update.lock")) {
+            if (file_exists($this->dir . "/update.lock")) {
                 $this->log[] = [date("Y-m-d H:i:s"), "Update already running. Update terminated."];
                 return true;
             }

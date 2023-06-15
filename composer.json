@@ -6,14 +6,7 @@
     "require": {},
     "autoload": {
         "psr-4": {
-            "KoderZi\\PhpGitHubUpdater\\": ""
-        }
-    },
-    "extra": {
-        "installer-paths": {
-            "./": [
-                "koderzi/php-github-updater"
-            ]
+            "KoderZi\\PhpGitHubUpdater\\": "src/"
         }
     }
 }
