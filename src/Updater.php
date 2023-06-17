@@ -15,20 +15,24 @@ final class Updater
     private $admin;
     private $mailer;
     private $dir;
+    private $exclude = [];
     private $log = [];
 
     /**
-     * Constructs a new instance of the class and starts the update process for the provided version.
+     * Constructor for the class. Initializes the object properties and installs composer.
      *
-     * @param string $username Your GitHub username.
-     * @param string $repository The name of your GitHub repository.
-     * @param string $token The personal access token you generated earlier.
-     * @param string $version The current version number of your project.
-     * @param string $admin The email address of the admin who will receive an email in case of update failure.
-     * @param string $mailer The email address that the email will be sent from.
+     * @param string $username The username used for the API calls.
+     * @param string $repository The repository used for the API calls.
+     * @param string $token The API token used for authentication.
+     * @param string $version The API version to use.
+     * @param string $admin The email address of the administrator.
+     * @param string $mailer The email address used for sending emails.
+     * @param array $exclude An array of directories or files to exclude from the update.
+     *                       The array must have the format ['path' => [], 'filename' => []]
+     * @throws Some_Exception_Class If the update process fails.
      * @return void
      */
-    public function __construct(string $username, string $repository, string $token, string $version, string $admin, string $mailer)
+    public function __construct(string $username, string $repository, string $token, string $version, string $admin, string $mailer, array $exclude = ['path' => [], 'filename' => []])
     {
         $this->username = $username;
         $this->repository = $repository;
@@ -37,6 +41,15 @@ final class Updater
         $this->admin = $admin;
         $this->mailer = $mailer;
         $this->dir = getcwd();
+
+        if (!isset($exclude['path'])) {
+            $exclude['path'] = [];
+        }
+        if (!isset($exclude['filename'])) {
+            $exclude['filename'] = [];
+        }
+
+        $this->exclude = $exclude;
 
         if (!$this->Update()) {
             $this->Mail();
@@ -57,7 +70,7 @@ final class Updater
 
     private function Mail()
     {
-        $subject = "Plugin Update Failed: {$this->repository} - Action Required";
+        $subject = "Github Updater Failed: {$this->repository} - Action Required";
         $headers = "From: <{$this->mailer}>\r\n";
         $headers .= "MIME-Version: 1.0\r\n";
         $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
@@ -66,7 +79,7 @@ final class Updater
             <html>
                 <head>
                     <meta charset="utf-8">
-                    <title>Plugin Update Failed: [PLUGIN NAME] - Action Required</title>
+                    <title>Github Updater Failed: {{ REPOSITORY }} - Action Required</title>
                     <style>
                         table {
                             border-collapse: collapse;
@@ -82,7 +95,7 @@ final class Updater
                 </head>
                 <body>
                     <p>Dear Admin,</p>
-                    <p>We regret to inform you that the latest update for the [PLUGIN NAME] plugin has failed. Please take appropriate action to resolve the issue.</p>
+                    <p>We regret to inform you that the latest update for the {{ REPOSITORY }} repository has failed. Please take appropriate action to resolve the issue.</p>
                     <p>Update Logs:</p>
                     <table>
                         ' . implode("", array_map(function ($entry) {
@@ -93,7 +106,7 @@ final class Updater
                     <p>Best regards</p>
                 </body>
             </html>';
-        $html_message = str_replace("[PLUGIN NAME]", $this->repository, $html_message);
+        $html_message = str_replace("{{ REPOSITORY }}", $this->repository, $html_message);
         if (mail($this->admin, $subject, $html_message, $headers)) {
             $this->log[] = [date("Y-m-d H:i:s"), "Email sent to {$this->admin}"];
         } else {
@@ -305,15 +318,37 @@ final class Updater
     private function Upgrade()
     {
         sleep(10);
-        $plugin_paths = $this->MapPath($this->dir, ['path' => [$this->dir . '/.git', $this->dir . '/update', $this->dir . '/update.lock', $this->dir.'/vendor', $this->dir.'/composer.phar'], 'filename' => ['.gitignore']]);
-        $this->log[] = [date("Y-m-d H:i:s"), "Plugin list:\n" . json_encode($plugin_paths, JSON_PRETTY_PRINT)];
+        // how to merge array?
+        $app_exclude = [];
+        $app_exclude['path'] = [$this->dir . '/.git', $this->dir . '/update', $this->dir . '/update.lock', $this->dir.'/vendor', $this->dir.'/composer.phar'];
+        $app_exclude['path'] = array_merge($app_exclude['path'], $this->exclude['path']);
+        $app_exclude['path'] = array_unique($app_exclude_paths);
 
-        $plugin_relative_paths = array_map(function ($plugin_path) {
-            return substr_replace($plugin_path, '', 0, strlen($this->dir));
-        }, $plugin_paths);
+        $app_exclude['filename'] = ['.gitignore'];
+        $app_exclude['filename'] = array_merge($app_exclude['filename'], $this->exclude['filename']);
+        $app_exclude['filename'] = array_unique($app_exclude['filename']);
 
-        $upgrade_paths = $this->MapPath($this->dir . "/update/extract/tmp_{$this->repository}", ['path' => [$this->dir . '/.git', $this->dir . '/update.lock', $this->dir.'/vendor', $this->dir.'/composer.phar'], 'filename' => ['.gitignore']]);
-        $this->log[] = [date("Y-m-d H:i:s"), "Upgrade list:\n" . json_encode($upgrade_paths, JSON_PRETTY_PRINT)];
+        $this->log[] = [date("Y-m-d H:i:s"), "App exclude:\n" . json_encode($app_exclude, JSON_PRETTY_PRINT)];
+
+        $app_paths = $this->MapPath($this->dir, $app_exclude);
+        $this->log[] = [date("Y-m-d H:i:s"), "App lists:\n" . json_encode($app_paths, JSON_PRETTY_PRINT)];
+
+        $app_relative_paths = array_map(function ($app_path) {
+            return substr_replace($app_path, '', 0, strlen($this->dir));
+        }, $app_paths);
+
+        $upgrade_exclude = [];
+        $upgrade_exclude['path'] = [$this->dir . '/.git', $this->dir . '/update.lock', $this->dir.'/vendor', $this->dir.'/composer.phar'];
+        $upgrade_exclude['path'] = array_merge($upgrade_exclude['path'], $this->exclude['path']);
+        $upgrade_exclude['path'] = array_unique($upgrade_exclude['path']);
+
+        $upgrade_exclude['filename'] = ['.gitkeep'];
+        $upgrade_exclude['filename'] = array_merge($upgrade_exclude['filename'], $this->exclude['filename']);
+        $upgrade_exclude['filename'] = array_unique($upgrade_exclude['filename']);
+        $this->log[] = [date("Y-m-d H:i:s"), "Upgrade exclude:\n" . json_encode($upgrade_exclude, JSON_PRETTY_PRINT)];
+
+        $upgrade_paths = $this->MapPath($this->dir . "/update/extract/tmp_{$this->repository}", $upgrade_exclude);
+        $this->log[] = [date("Y-m-d H:i:s"), "Upgrade lists:\n" . json_encode($upgrade_paths, JSON_PRETTY_PRINT)];
 
         $upgrade_relative_paths = array_map(function ($upgrade_path) {
             return substr_replace($upgrade_path, '', 0, strlen($this->dir . "/update/extract/tmp_{$this->repository}"));
@@ -321,39 +356,39 @@ final class Updater
 
         foreach ($upgrade_relative_paths as $upgrade_relative_path) {
             $upgrade_path = $this->dir . "/update/extract/tmp_{$this->repository}$upgrade_relative_path";
-            $plugin_path = $this->dir . "$upgrade_relative_path";
+            $app_path = $this->dir . "$upgrade_relative_path";
             if (is_dir($upgrade_path)) {
-                if (!is_dir($plugin_path)) {
-                    if (mkdir($plugin_path, 0700, true)) {
-                        $this->log[] = [date("Y-m-d H:i:s"), "Folder created. $plugin_path"];
+                if (!is_dir($app_path)) {
+                    if (mkdir($app_path, 0700, true)) {
+                        $this->log[] = [date("Y-m-d H:i:s"), "Folder created. $app_path"];
                     } else {
-                        $this->log[] = [date("Y-m-d H:i:s"), "Folder cannot be created. $plugin_path"];
+                        $this->log[] = [date("Y-m-d H:i:s"), "Folder cannot be created. $app_path"];
                         return false;
                     }
                 }
             } elseif (is_file($upgrade_path)) {
-                if (is_file($plugin_path)) {
+                if (is_file($app_path)) {
                     $upgrade_content = file_get_contents($upgrade_path, true);
                     if ($upgrade_content === false) {
                         $this->log[] = [date("Y-m-d H:i:s"), "Failed to retrieve update content. $upgrade_path"];
                         return false;
                     };
-                    $content_size = file_put_contents($plugin_path, $upgrade_content);
+                    $content_size = file_put_contents($app_path, $upgrade_content);
                     if ($content_size === false) {
-                        $this->log[] = [date("Y-m-d H:i:s"), "Failed to write update content. $plugin_path"];
+                        $this->log[] = [date("Y-m-d H:i:s"), "Failed to write update content. $app_path"];
                         return false;
                     };
-                    $this->log[] = [date("Y-m-d H:i:s"), "$content_size bytes written from $upgrade_path to $plugin_path"];
+                    $this->log[] = [date("Y-m-d H:i:s"), "$content_size bytes written from $upgrade_path to $app_path"];
                 } else {
-                    if (!copy($upgrade_path, $plugin_path)) {
-                        $this->log[] = [date("Y-m-d H:i:s"), "Failed to copy update content. $plugin_path"];
+                    if (!copy($upgrade_path, $app_path)) {
+                        $this->log[] = [date("Y-m-d H:i:s"), "Failed to copy update content. $app_path"];
                         return false;
                     };
                 }
             }
         }
 
-        $delete_relative_paths = array_values(array_diff($plugin_relative_paths, $upgrade_relative_paths));
+        $delete_relative_paths = array_values(array_diff($app_relative_paths, $upgrade_relative_paths));
 
         foreach ($delete_relative_paths as $delete_relative_path) {
             if (is_dir($this->dir . $delete_relative_path)) {
@@ -368,7 +403,7 @@ final class Updater
         $delete_paths = array_values(array_map(function ($delete_relative_path) {
             return $this->dir . $delete_relative_path;
         }, $delete_relative_paths));
-        $this->log[] = [date("Y-m-d H:i:s"), "Delete list:\n" . json_encode($delete_paths, JSON_PRETTY_PRINT)];
+        $this->log[] = [date("Y-m-d H:i:s"), "Delete lists:\n" . json_encode($delete_paths, JSON_PRETTY_PRINT)];
 
         foreach ($delete_paths as $delete_path) {
             if (!$this->Delete($delete_path)) {
