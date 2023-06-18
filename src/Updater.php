@@ -19,20 +19,20 @@ final class Updater
     private $log = [];
 
     /**
-     * Constructor for the class. Initializes the object properties and installs composer.
+     * Constructs a new instance of the class and starts the update process for the provided version.
      *
-     * @param string $username The username used for the API calls.
-     * @param string $repository The repository used for the API calls.
-     * @param string $token The API token used for authentication.
-     * @param string $version The API version to use.
-     * @param string $admin The email address of the administrator.
-     * @param string $mailer The email address used for sending emails.
-     * @param array $exclude An array of directories or files to exclude from the update.
-     *                       The array must have the format ['path' => [], 'filename' => []]
-     * @throws Some_Exception_Class If the update process fails.
+     * @param string $username Your GitHub username.
+     * @param string $repository The name of your GitHub repository.
+     * @param string $token The generated GitHub personal access token for the repository.
+     * @param string $version The current version number of your project.
+     * @param string|null $admin (Optional) The email address of the admin who will receive an email in case of update failure.
+     * @param string|null $mailer (Optional) The email address that the email will be sent from.
+     * @param array|null $exclude (Optional) An array of directories or files to exclude from the update. The array keys:
+     *      'path' => an array of excluded paths
+     *      'filename' => an array of excluded filenames
      * @return void
      */
-    public function __construct(string $username, string $repository, string $token, string $version, string $admin, string $mailer, array $exclude = ['path' => [], 'filename' => []])
+    public function __construct(string $username, string $repository, string $token, string $version, string|null $admin = '', string|null $mailer = '', array|null $exclude = ['path' => [], 'filename' => []])
     {
         $this->username = $username;
         $this->repository = $repository;
@@ -52,7 +52,10 @@ final class Updater
         $this->exclude = $exclude;
 
         if (!$this->Update()) {
-            $this->Mail();
+            if($this->admin != '' && $this->mailer != '')
+            {
+                $this->Mail();
+            }
         }
         $this->Log();
         if (class_exists('Composer\Autoload\ClassLoader')) {
