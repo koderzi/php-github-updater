@@ -56,7 +56,13 @@ final class Updater
         }
         $this->Log();
         if (class_exists('Composer\Autoload\ClassLoader')) {
-            exec('composer install -d ' . getcwd());
+            if (is_dir(exec('which composer'))) {
+                exec('composer install -d ' . getcwd());
+            } elseif (file_exists(getcwd() . '/composer.phar')) {
+                exec('php composer.phar install -d ' . getcwd());
+            } elseif (file_exists(($composer_path = exec('find / -name "composer.phar" 2>/dev/null')))) {
+                exec('php ' . $composer_path . ' install -d ' . getcwd());
+            }
         }
     }
 
@@ -320,9 +326,9 @@ final class Updater
         sleep(10);
         // how to merge array?
         $app_exclude = [];
-        $app_exclude['path'] = [$this->dir . '/.git', $this->dir . '/update', $this->dir . '/update.lock', $this->dir.'/vendor', $this->dir.'/composer.phar'];
+        $app_exclude['path'] = [$this->dir . '/.git', $this->dir . '/update', $this->dir . '/update.lock', $this->dir . '/vendor', $this->dir . '/composer.phar'];
         $app_exclude['path'] = array_merge($app_exclude['path'], $this->exclude['path']);
-        $app_exclude['path'] = array_unique($app_exclude_paths);
+        $app_exclude['path'] = array_unique($app_exclude['path']);
 
         $app_exclude['filename'] = ['.gitignore'];
         $app_exclude['filename'] = array_merge($app_exclude['filename'], $this->exclude['filename']);
@@ -338,11 +344,11 @@ final class Updater
         }, $app_paths);
 
         $upgrade_exclude = [];
-        $upgrade_exclude['path'] = [$this->dir . '/.git', $this->dir . '/update.lock', $this->dir.'/vendor', $this->dir.'/composer.phar'];
+        $upgrade_exclude['path'] = [$this->dir . '/.git', $this->dir . '/update.lock', $this->dir . '/vendor', $this->dir . '/composer.phar'];
         $upgrade_exclude['path'] = array_merge($upgrade_exclude['path'], $this->exclude['path']);
         $upgrade_exclude['path'] = array_unique($upgrade_exclude['path']);
 
-        $upgrade_exclude['filename'] = ['.gitkeep'];
+        $upgrade_exclude['filename'] = ['.gitignore'];
         $upgrade_exclude['filename'] = array_merge($upgrade_exclude['filename'], $this->exclude['filename']);
         $upgrade_exclude['filename'] = array_unique($upgrade_exclude['filename']);
         $this->log[] = [date("Y-m-d H:i:s"), "Upgrade exclude:\n" . json_encode($upgrade_exclude, JSON_PRETTY_PRINT)];
