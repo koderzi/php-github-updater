@@ -51,23 +51,31 @@ final class Updater
 
         $this->exclude = $exclude;
 
-        if (!$this->Update()) {
+        $update = $this->Install();
+
+        if (!$update) {
             if($this->admin != '' && $this->mailer != '')
             {
                 $this->Mail();
             }
         }
         $this->Log();
-        if (class_exists('Composer\Autoload\ClassLoader')) {
-            if (is_dir(exec('which composer'))) {
-                exec('composer install -d ' . getcwd());
-            } elseif (file_exists(getcwd() . '/composer.phar')) {
-                exec('php composer.phar install -d ' . getcwd());
-            } elseif (file_exists(($composer_path = exec('find / -name "composer.phar" 2>/dev/null')))) {
-                exec('php ' . $composer_path . ' install -d ' . getcwd());
+        if($update)
+        {
+            if (class_exists('Composer\Autoload\ClassLoader')) {
+                if (is_dir(exec('which composer'))) {
+                    exec('composer install -d ' . getcwd());
+                } elseif (file_exists(getcwd() . '/composer.phar')) {
+                    exec('php composer.phar install -d ' . getcwd());
+                } elseif (file_exists(($composer_path = exec('find / -name "composer.phar" 2>/dev/null')))) {
+                    exec('php ' . $composer_path . ' install -d ' . getcwd());
+                }
             }
         }
+        return $update;
     }
+
+    private 
 
     private function Log()
     {
@@ -439,7 +447,7 @@ final class Updater
         return true;
     }
 
-    private function Update()
+    private function Install()
     {
         $this->log[] = [date("Y-m-d H:i:s"), "Update started."];
         if (!$this->Lock()) {
