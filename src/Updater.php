@@ -75,8 +75,6 @@ final class Updater
         return $update;
     }
 
-    private 
-
     private function Log()
     {
         $log = implode("\n", array_map(function ($entry) {
