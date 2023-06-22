@@ -62,22 +62,22 @@ To initialize the Updater class and start the update process, follow these steps
     );
 ```
 
->- __$username__: Your GitHub username.
->- __$repository__: The name of your GitHub repository.
->- __$token__: The personal access token you generated earlier.
->- __$version__: The generated GitHub personal access token for the repository.
->- __$admin__: (Optional) The email address of the admin who will receive an email in case of update failure.
->- __$mailer__: (Optional) The email address that the email will be sent from.
->- __$exclude__: (Optional) An array of directories or files to exclude from the update. The array keys:<br>&ensp;'path' => an array of excluded paths<br>&ensp;'filename' => an array of excluded filenames
+> `$username`: Your GitHub username.
+> `$repository`: The name of your GitHub repository.
+> `$token`: The personal access token you generated earlier.
+> `$version`: The generated GitHub personal access token for the repository.
+> `$admin`: (Optional) The email address of the admin who will receive an email in case of update failure.
+> `$mailer`: (Optional) The email address that the email will be sent from.
+> `$exclude`: (Optional) An array of directories or files to exclude from the update. The array keys:<br>&ensp;'path' => an array of excluded paths<br>&ensp;'filename' => an array of excluded filenames
 
 If a new release is available, the class will update your project automatically. 
 
 The class will return the update status with the following possible values:
 
->`UPDATED`: Indicates that the update was successful. 
->`LATEST`: Indicates that the project is already up to date. 
->`BUSY`: Indicates that an update process is already in progress. 
->`ERROR`: Indicates that the update failed. 
+> `UPDATED`: Indicates that the update was successful.
+> `LATEST`: Indicates that the project is already up to date.
+> `BUSY`: Indicates that an update process is already in progress.
+> `ERROR`: Indicates that the update failed.
 
 ## Conclusion
 
