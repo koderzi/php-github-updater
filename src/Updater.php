@@ -53,7 +53,7 @@ final class Updater
 
         $update = $this->Install();
 
-        if (!$update) {
+        if ($update == 'ERROR') {
             if($this->admin != '' && $this->mailer != '')
             {
                 $this->Mail();
@@ -291,7 +291,7 @@ final class Updater
                 $this->log[] = [date("Y-m-d H:i:s"), "Curl return $status."];
                 return false;
             };
-            if (!file_exists($download_file)) {
+            if (!file_exists($download_file)) {       
                 $this->log[] = [date("Y-m-d H:i:s"), "Failed to download zip file. $download_file"];
                 return false;
             }
@@ -333,7 +333,7 @@ final class Updater
     private function Upgrade()
     {
         sleep(10);
-        // how to merge array?
+        
         $app_exclude = [];
         $app_exclude['path'] = [$this->dir . '/.git', $this->dir . '/update', $this->dir . '/update.lock', $this->dir . '/vendor', $this->dir . '/composer.phar'];
         $app_exclude['path'] = array_merge($app_exclude['path'], $this->exclude['path']);
@@ -353,9 +353,7 @@ final class Updater
         }, $app_paths);
 
         $upgrade_exclude = [];
-        $upgrade_exclude['path'] = [$this->dir . '/.git', $this->dir . '/update.lock', $this->dir . '/vendor', $this->dir . '/composer.phar'];
-        $upgrade_exclude['path'] = array_merge($upgrade_exclude['path'], $this->exclude['path']);
-        $upgrade_exclude['path'] = array_unique($upgrade_exclude['path']);
+        $upgrade_exclude['path'] = $this->exclude['path'];
 
         $upgrade_exclude['filename'] = ['.gitignore'];
         $upgrade_exclude['filename'] = array_merge($upgrade_exclude['filename'], $this->exclude['filename']);
