@@ -46,7 +46,7 @@ To use this class with direct download, follow these steps:
 ## Usage
 
 To initialize the Updater class and start the update process, follow these steps:
-- Instantiate the GitUpdate class with the following parameters:
+- Instantiate the class with the following parameters:
 
 ```
     use KoderZi\PhpGitHubUpdater\Updater;
@@ -70,7 +70,14 @@ To initialize the Updater class and start the update process, follow these steps
 >- __$mailer__: (Optional) The email address that the email will be sent from.
 >- __$exclude__: (Optional) An array of directories or files to exclude from the update. The array keys:<br>&ensp;'path' => an array of excluded paths<br>&ensp;'filename' => an array of excluded filenames
 
-If a new release is available, the class will update your project automatically.
+If a new release is available, the class will update your project automatically. 
+
+The class will return the update status with the following possible values:
+
+>`UPDATED`: Indicates that the update was successful.
+>`LATEST`: Indicates that the project is already up to date.
+>`BUSY`: Indicates that an update process is already in progress.
+>`ERROR`: Indicates that the update failed.
 
 ## Conclusion
 
