@@ -60,7 +60,7 @@ final class Updater
             }
         }
         $this->Log();
-        if($update)
+        if($update == 'UPDATED')
         {
             if (class_exists('Composer\Autoload\ClassLoader')) {
                 if (is_dir(exec('which composer'))) {
@@ -451,26 +451,26 @@ final class Updater
         if (!$this->Lock()) {
             if (file_exists($this->dir . "/update.lock")) {
                 $this->log[] = [date("Y-m-d H:i:s"), "Update already running. Update terminated."];
-                return true;
+                return 'BUSY';
             }
             $this->log[] = [date("Y-m-d H:i:s"), "Update lock aquiring failed. Update terminated."];
             $this->Unlock();
-            return false;
+            return 'ERROR';
         }
         if (!$this->Folder()) {
             $this->log[] = [date("Y-m-d H:i:s"), "Folder creation process failed. Update terminated."];
             $this->Unlock();
-            return false;
+            return 'ERROR';
         }
         if (!$this->Version()) {
             $this->log[] = [date("Y-m-d H:i:s"), "Version check process failed. Update terminated."];
             $this->Unlock();
-            return false;
+            return 'ERROR';
         }
         if (!version_compare($this->release, $this->version, '>')) {
             $this->log[] = [date("Y-m-d H:i:s"), "Version already up to date (Release {$this->release}). Update terminated."];
             $this->Unlock();
-            return true;
+            return 'LATEST';
         }
         $download_try = 0;
         while (!$this->Download($this->zip_url)) {
@@ -478,7 +478,7 @@ final class Updater
             if ($download_try > 3) {
                 $this->log[] = [date("Y-m-d H:i:s"), "Download process failed. Update terminated."];
                 $this->Unlock();
-                return false;
+                return 'ERROR';
             }
             $this->log[] = [date("Y-m-d H:i:s"), "Unable to retrieve download. Retry in 5 seconds."];
             sleep(5);
@@ -486,16 +486,16 @@ final class Updater
         if (!$this->Extract()) {
             $this->log[] = [date("Y-m-d H:i:s"), "Extraction process failed. Update terminated."];
             $this->Unlock();
-            return false;
+            return 'ERROR';
         }
         if (!$this->Upgrade()) {
             $this->log[] = [date("Y-m-d H:i:s"), "Upgrade process failed. Update terminated."];
             $this->Unlock();
-            return false;
+            return 'ERROR';
         }
         $this->log[] = [date("Y-m-d H:i:s"), "Update completed."];
         $this->Unlock();
-        return true;
+        return 'UPDATED';
     }
 
     private function MapPath($path, $exclude = ['path' => [], 'filename' => []], &$list = [])
