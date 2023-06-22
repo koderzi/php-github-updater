@@ -74,10 +74,10 @@ If a new release is available, the class will update your project automatically.
 
 The class will return the update status with the following possible values:
 
->`UPDATED`: Indicates that the update was successful.
->`LATEST`: Indicates that the project is already up to date.
->`BUSY`: Indicates that an update process is already in progress.
->`ERROR`: Indicates that the update failed.
+>`UPDATED`: Indicates that the update was successful. 
+>`LATEST`: Indicates that the project is already up to date. 
+>`BUSY`: Indicates that an update process is already in progress. 
+>`ERROR`: Indicates that the update failed. 
 
 ## Conclusion
 
