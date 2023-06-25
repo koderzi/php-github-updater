@@ -82,11 +82,11 @@ To check the status of the update, use the following code:
 
 The update status can have the following int values:
 
-> `Updater::STARTED` (100): Indicates that the update has started.
-> `Updater::UPDATED` (200): Indicates that the update was successful.
-> `Updater::LATEST` (204): Indicates that the project is already up to date.
-> `Updater::ERROR` (500): Indicates that the update failed.
-> `Updater::BUSY` (504): Indicates that an update process is already in progress.
+> `Updater::STARTED` (100): Indicates that the update has started.<br>
+> `Updater::UPDATED` (200): Indicates that the update was successful.<br>
+> `Updater::LATEST` (204): Indicates that the project is already up to date.<br>
+> `Updater::ERROR` (500): Indicates that the update failed.<br>
+> `Updater::BUSY` (504): Indicates that an update process is already in progress.<br>
 
 ## Conclusion
 
