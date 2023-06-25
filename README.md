@@ -13,6 +13,7 @@ Before using this class, you need to generate a personal access token on GitHub.
 ## Installation
 
 To use this class with Composer, follow these steps:
+
 - Open a terminal or command prompt in your project's root directory.
 - Run the following command to initialize a composer.json file in your project:
 
@@ -46,12 +47,13 @@ To use this class with direct download, follow these steps:
 ## Usage
 
 To initialize the Updater class and start the update process, follow these steps:
+
 - Instantiate the class with the following parameters:
 
 ```
     use KoderZi\PhpGitHubUpdater\Updater;
 
-    new Updater(
+    $update = new Updater(
         string $username,
         string $repository,
         string $token,
@@ -72,12 +74,19 @@ To initialize the Updater class and start the update process, follow these steps
 
 If a new release is available, the class will update your project automatically. 
 
-The class will return the update status with the following possible values:
+To check the status of the update, use the following code:
+ 
+```
+    $update->status();
+```
 
-> `UPDATED` Indicates that the update was successful.<br>
-> `LATEST` Indicates that the project is already up to date.<br>
-> `BUSY` Indicates that an update process is already in progress.<br>
-> `ERROR` Indicates that the update failed.<br>
+The update status can have the following int values:
+
+> `Updater::STARTED` (100): Indicates that the update has started.
+> `Updater::UPDATED` (200): Indicates that the update was successful.
+> `Updater::LATEST` (204): Indicates that the project is already up to date.
+> `Updater::ERROR` (500): Indicates that the update failed.
+> `Updater::BUSY` (504): Indicates that an update process is already in progress.
 
 ## Conclusion
 

@@ -6,6 +6,12 @@ use ZipArchive;
 
 final class Updater
 {
+    const STARTED = 100;
+    const UPDATED = 200;
+    const LATEST = 204;
+    const ERROR = 500;
+    const BUSY = 504;
+
     private $username;
     private $repository;
     private $token;
@@ -17,6 +23,7 @@ final class Updater
     private $dir;
     private $exclude = [];
     private $log = [];
+    private $status;
 
     /**
      * Constructs a new instance of the class and starts the update process for the provided version.
@@ -34,6 +41,7 @@ final class Updater
      */
     public function __construct(string $username, string $repository, string $token, string $version, string|null $admin = '', string|null $mailer = '', array|null $exclude = ['path' => [], 'filename' => []])
     {
+        $this->status = $this::STARTED;
         $this->username = $username;
         $this->repository = $repository;
         $this->token = $token;
@@ -53,15 +61,13 @@ final class Updater
 
         $update = $this->Install();
 
-        if ($update == 'ERROR') {
-            if($this->admin != '' && $this->mailer != '')
-            {
+        if ($update == $this::ERROR) {
+            if ($this->admin != '' && $this->mailer != '') {
                 $this->Mail();
             }
         }
         $this->Log();
-        if($update == 'UPDATED')
-        {
+        if ($update == $this::UPDATED) {
             if (class_exists('Composer\Autoload\ClassLoader')) {
                 if (is_dir(exec('which composer'))) {
                     exec('composer install -d ' . getcwd());
@@ -72,7 +78,22 @@ final class Updater
                 }
             }
         }
-        return $update;
+        $this->status = $update;
+    }
+
+    /**
+     * Retrieves the status of the updater.
+     *
+     * @return int One of the following status codes:
+     *  - `STARTED` (100): Indicates that the update has started.
+     *  - `UPDATED` (200): Indicates that the update was successful.
+     *  - `LATEST` (204): Indicates that the project is already up to date.
+     *  - `ERROR` (500): Indicates that the update failed.
+     *  - `BUSY` (504): Indicates that an update process is already in progress.
+     */
+    public function status()
+    {
+        return $this->status;
     }
 
     private function Log()
@@ -291,7 +312,7 @@ final class Updater
                 $this->log[] = [date("Y-m-d H:i:s"), "Curl return $status."];
                 return false;
             };
-            if (!file_exists($download_file)) {       
+            if (!file_exists($download_file)) {
                 $this->log[] = [date("Y-m-d H:i:s"), "Failed to download zip file. $download_file"];
                 return false;
             }
@@ -333,7 +354,7 @@ final class Updater
     private function Upgrade()
     {
         sleep(10);
-        
+
         $app_exclude = [];
         $app_exclude['path'] = [$this->dir . '/.git', $this->dir . '/update', $this->dir . '/update.lock', $this->dir . '/vendor', $this->dir . '/composer.phar'];
         $app_exclude['path'] = array_merge($app_exclude['path'], $this->exclude['path']);
@@ -449,26 +470,26 @@ final class Updater
         if (!$this->Lock()) {
             if (file_exists($this->dir . "/update.lock")) {
                 $this->log[] = [date("Y-m-d H:i:s"), "Update already running. Update terminated."];
-                return 'BUSY';
+                return $this::BUSY;
             }
             $this->log[] = [date("Y-m-d H:i:s"), "Update lock aquiring failed. Update terminated."];
             $this->Unlock();
-            return 'ERROR';
+            return $this::ERROR;
         }
         if (!$this->Folder()) {
             $this->log[] = [date("Y-m-d H:i:s"), "Folder creation process failed. Update terminated."];
             $this->Unlock();
-            return 'ERROR';
+            return $this::ERROR;
         }
         if (!$this->Version()) {
             $this->log[] = [date("Y-m-d H:i:s"), "Version check process failed. Update terminated."];
             $this->Unlock();
-            return 'ERROR';
+            return $this::ERROR;
         }
         if (!version_compare($this->release, $this->version, '>')) {
             $this->log[] = [date("Y-m-d H:i:s"), "Version already up to date (Release {$this->release}). Update terminated."];
             $this->Unlock();
-            return 'LATEST';
+            return $this::LATEST;
         }
         $download_try = 0;
         while (!$this->Download($this->zip_url)) {
@@ -476,7 +497,7 @@ final class Updater
             if ($download_try > 3) {
                 $this->log[] = [date("Y-m-d H:i:s"), "Download process failed. Update terminated."];
                 $this->Unlock();
-                return 'ERROR';
+                return $this::ERROR;
             }
             $this->log[] = [date("Y-m-d H:i:s"), "Unable to retrieve download. Retry in 5 seconds."];
             sleep(5);
@@ -484,16 +505,16 @@ final class Updater
         if (!$this->Extract()) {
             $this->log[] = [date("Y-m-d H:i:s"), "Extraction process failed. Update terminated."];
             $this->Unlock();
-            return 'ERROR';
+            return $this::ERROR;
         }
         if (!$this->Upgrade()) {
             $this->log[] = [date("Y-m-d H:i:s"), "Upgrade process failed. Update terminated."];
             $this->Unlock();
-            return 'ERROR';
+            return $this::ERROR;
         }
         $this->log[] = [date("Y-m-d H:i:s"), "Update completed."];
         $this->Unlock();
-        return 'UPDATED';
+        return $this::UPDATED;
     }
 
     private function MapPath($path, $exclude = ['path' => [], 'filename' => []], &$list = [])
