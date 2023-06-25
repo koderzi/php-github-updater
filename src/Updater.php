@@ -42,13 +42,18 @@ final class Updater
     public function __construct(string $username, string $repository, string $token, string $version, string|null $admin = '', string|null $mailer = '', array|null $exclude = ['path' => [], 'filename' => []])
     {
         $this->status = $this::STARTED;
-        $this->username = $username;
-        $this->repository = $repository;
-        $this->token = $token;
-        $this->version = $version;
-        $this->admin = $admin;
-        $this->mailer = $mailer;
-        $this->dir = getcwd();
+
+        if ($admin == null) {
+            $this->admin = '';
+        }
+
+        if ($mailer == null) {
+            $this->mailer = '';
+        }
+
+        if ($exclude == null) {
+            $exclude = [];
+        }
 
         if (!isset($exclude['path'])) {
             $exclude['path'] = [];
@@ -57,7 +62,15 @@ final class Updater
             $exclude['filename'] = [];
         }
 
+        $this->username = $username;
+        $this->repository = $repository;
+        $this->token = $token;
+        $this->version = $version;
+        $this->admin = $admin;
+        $this->mailer = $mailer;
         $this->exclude = $exclude;
+
+        $this->dir = getcwd();
 
         $update = $this->Install();
 
