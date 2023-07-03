@@ -60,7 +60,8 @@ To initialize the Updater class and start the update process, follow these steps
         string $version,
         string|null $admin,
         string|null $mailer,
-        array|null $exclude = ['path' => [], 'filename' => []]
+        array|null $sourceExclusions = ['path' => [], 'filename' => []],
+        array|null $releaseExclusions  = ['path' => [], 'filename' => []]
     );
 ```
 
@@ -70,7 +71,22 @@ To initialize the Updater class and start the update process, follow these steps
 > `$version` The generated GitHub personal access token for the repository.<br>
 > `$admin` (Optional) The email address of the admin who will receive an email in case of update failure.<br>
 > `$mailer` (Optional) The email address that the email will be sent from.<br>
-> `$exclude` (Optional) An array of directories or files to exclude from the update. The array keys:<br>&ensp;'path' => an array of excluded paths<br>&ensp;'filename' => an array of excluded filenames<br>
+> `$sourceExclusions` (Optional)  An array of directories or files in the source to be exclude from the update.<br>
+> `$releaseExclusions` (Optional) An array of directories or files in the release to exclude from the update.<br>
+
+> The exclusions array keys:
+
+```
+    $sourceExclusions = [
+        'path' => an array of source excluded paths,
+        'filename' => an array of source excluded filenames
+    ]
+
+    $releaseExclusions = [
+        'path' => an array of release excluded paths,
+        'filename' => an array of release excluded filenames
+    ]
+```
 
 If a new release is available, the class will update your project automatically. 
 

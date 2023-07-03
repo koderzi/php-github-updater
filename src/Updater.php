@@ -34,12 +34,15 @@ final class Updater
      * @param string $version The current version number of your project.
      * @param string|null $admin (Optional) The email address of the admin who will receive an email in case of update failure.
      * @param string|null $mailer (Optional) The email address that the email will be sent from.
-     * @param array|null $exclude (Optional) An array of directories or files to exclude from the update. The array keys:
-     *      'path' => an array of excluded paths
-     *      'filename' => an array of excluded filenames
+     * @param array|null $sourceExclusions (Optional) An array of directories or files in the source to be exclude from the update. The array keys:
+     *      'path' => an array of source excluded paths
+     *      'filename' => an array of source excluded filenames
+     * @param array|null $releaseExclusions (Optional) An array of directories or files in the release to exclude from the update. The array keys:
+     *      'path' => an array of release excluded paths
+     *      'filename' => an array of release excluded filenames
      * @return void
      */
-    public function __construct(string $username, string $repository, string $token, string $version, string|null $admin = '', string|null $mailer = '', array|null $exclude = ['path' => [], 'filename' => []])
+    public function __construct(string $username, string $repository, string $token, string $version, string|null $admin = '', string|null $mailer = '', array|null $sourceExclusions  = ['path' => [], 'filename' => []], array|null $releaseExclusions  = ['path' => [], 'filename' => []])
     {
         $this->status = $this::STARTED;
 
@@ -51,15 +54,26 @@ final class Updater
             $this->mailer = '';
         }
 
-        if ($exclude == null) {
-            $exclude = [];
+        if ($sourceExclusions == null) {
+            $sourceExclusions = [];
         }
 
-        if (!isset($exclude['path'])) {
-            $exclude['path'] = [];
+        if (!isset($sourceExclusions['path'])) {
+            $sourceExclusions['path'] = [];
         }
-        if (!isset($exclude['filename'])) {
-            $exclude['filename'] = [];
+        if (!isset($sourceExclusions['filename'])) {
+            $sourceExclusions['filename'] = [];
+        }
+
+        if ($releaseExclusions == null) {
+            $releaseExclusions = [];
+        }
+
+        if (!isset($releaseExclusions['path'])) {
+            $releaseExclusions['path'] = [];
+        }
+        if (!isset($releaseExclusions['filename'])) {
+            $releaseExclusions['filename'] = [];
         }
 
         $this->username = $username;
@@ -68,7 +82,7 @@ final class Updater
         $this->version = $version;
         $this->admin = $admin;
         $this->mailer = $mailer;
-        $this->exclude = $exclude;
+        $this->exclude = ['source' => $sourceExclusions, 'release' =>  $releaseExclusions];
 
         $this->dir = getcwd();
 
@@ -368,74 +382,74 @@ final class Updater
     {
         sleep(10);
 
-        $app_exclude = [];
-        $app_exclude['path'] = [$this->dir . '/.git', $this->dir . '/update', $this->dir . '/update.lock', $this->dir . '/vendor', $this->dir . '/composer.phar'];
-        $app_exclude['path'] = array_merge($app_exclude['path'], $this->exclude['path']);
-        $app_exclude['path'] = array_unique($app_exclude['path']);
+        $source_exclude = [];
+        $source_exclude['path'] = [$this->dir . '/.git', $this->dir . '/update', $this->dir . '/update.lock', $this->dir . '/vendor', $this->dir . '/composer.phar'];
+        $source_exclude['path'] = array_merge($source_exclude['path'], $this->exclude['source']['path']);
+        $source_exclude['path'] = array_unique($source_exclude['path']);
 
-        $app_exclude['filename'] = ['.gitignore'];
-        $app_exclude['filename'] = array_merge($app_exclude['filename'], $this->exclude['filename']);
-        $app_exclude['filename'] = array_unique($app_exclude['filename']);
+        $source_exclude['filename'] = ['.gitignore'];
+        $source_exclude['filename'] = array_merge($source_exclude['filename'], $this->exclude['source']['filename']);
+        $source_exclude['filename'] = array_unique($source_exclude['filename']);
 
-        $this->log[] = [date("Y-m-d H:i:s"), "App exclude:\n" . json_encode($app_exclude, JSON_PRETTY_PRINT)];
+        $this->log[] = [date("Y-m-d H:i:s"), "App exclude:\n" . json_encode($source_exclude, JSON_PRETTY_PRINT)];
 
-        $app_paths = $this->MapPath($this->dir, $app_exclude);
-        $this->log[] = [date("Y-m-d H:i:s"), "App lists:\n" . json_encode($app_paths, JSON_PRETTY_PRINT)];
+        $source_paths = $this->MapPath($this->dir, $source_exclude);
+        $this->log[] = [date("Y-m-d H:i:s"), "App lists:\n" . json_encode($source_paths, JSON_PRETTY_PRINT)];
 
-        $app_relative_paths = array_map(function ($app_path) {
-            return substr_replace($app_path, '', 0, strlen($this->dir));
-        }, $app_paths);
+        $source_relative_paths = array_map(function ($source_path) {
+            return substr_replace($source_path, '', 0, strlen($this->dir));
+        }, $source_paths);
 
-        $upgrade_exclude = [];
-        $upgrade_exclude['path'] = $this->exclude['path'];
+        $release_exclude = [];
+        $release_exclude['path'] = $this->exclude['release']['path'];
 
-        $upgrade_exclude['filename'] = ['.gitignore'];
-        $upgrade_exclude['filename'] = array_merge($upgrade_exclude['filename'], $this->exclude['filename']);
-        $upgrade_exclude['filename'] = array_unique($upgrade_exclude['filename']);
-        $this->log[] = [date("Y-m-d H:i:s"), "Upgrade exclude:\n" . json_encode($upgrade_exclude, JSON_PRETTY_PRINT)];
+        $release_exclude['filename'] = ['.gitignore'];
+        $release_exclude['filename'] = array_merge($release_exclude['filename'], $this->exclude['release']['filename']);
+        $release_exclude['filename'] = array_unique($release_exclude['filename']);
+        $this->log[] = [date("Y-m-d H:i:s"), "Upgrade exclude:\n" . json_encode($release_exclude, JSON_PRETTY_PRINT)];
 
-        $upgrade_paths = $this->MapPath($this->dir . "/update/extract/tmp_{$this->repository}", $upgrade_exclude);
-        $this->log[] = [date("Y-m-d H:i:s"), "Upgrade lists:\n" . json_encode($upgrade_paths, JSON_PRETTY_PRINT)];
+        $release_paths = $this->MapPath($this->dir . "/update/extract/tmp_{$this->repository}", $release_exclude);
+        $this->log[] = [date("Y-m-d H:i:s"), "Upgrade lists:\n" . json_encode($release_paths, JSON_PRETTY_PRINT)];
 
-        $upgrade_relative_paths = array_map(function ($upgrade_path) {
-            return substr_replace($upgrade_path, '', 0, strlen($this->dir . "/update/extract/tmp_{$this->repository}"));
-        }, $upgrade_paths);
+        $release_relative_paths = array_map(function ($release_path) {
+            return substr_replace($release_path, '', 0, strlen($this->dir . "/update/extract/tmp_{$this->repository}"));
+        }, $release_paths);
 
-        foreach ($upgrade_relative_paths as $upgrade_relative_path) {
-            $upgrade_path = $this->dir . "/update/extract/tmp_{$this->repository}$upgrade_relative_path";
-            $app_path = $this->dir . "$upgrade_relative_path";
-            if (is_dir($upgrade_path)) {
-                if (!is_dir($app_path)) {
-                    if (mkdir($app_path, 0700, true)) {
-                        $this->log[] = [date("Y-m-d H:i:s"), "Folder created. $app_path"];
+        foreach ($release_relative_paths as $release_relative_path) {
+            $release_path = $this->dir . "/update/extract/tmp_{$this->repository}$release_relative_path";
+            $source_path = $this->dir . "$release_relative_path";
+            if (is_dir($release_path)) {
+                if (!is_dir($source_path)) {
+                    if (mkdir($source_path, 0700, true)) {
+                        $this->log[] = [date("Y-m-d H:i:s"), "Folder created. $source_path"];
                     } else {
-                        $this->log[] = [date("Y-m-d H:i:s"), "Folder cannot be created. $app_path"];
+                        $this->log[] = [date("Y-m-d H:i:s"), "Folder cannot be created. $source_path"];
                         return false;
                     }
                 }
-            } elseif (is_file($upgrade_path)) {
-                if (is_file($app_path)) {
-                    $upgrade_content = file_get_contents($upgrade_path, true);
-                    if ($upgrade_content === false) {
-                        $this->log[] = [date("Y-m-d H:i:s"), "Failed to retrieve update content. $upgrade_path"];
+            } elseif (is_file($release_path)) {
+                if (is_file($source_path)) {
+                    $release_content = file_get_contents($release_path, true);
+                    if ($release_content === false) {
+                        $this->log[] = [date("Y-m-d H:i:s"), "Failed to retrieve update content. $release_path"];
                         return false;
                     };
-                    $content_size = file_put_contents($app_path, $upgrade_content);
+                    $content_size = file_put_contents($source_path, $release_content);
                     if ($content_size === false) {
-                        $this->log[] = [date("Y-m-d H:i:s"), "Failed to write update content. $app_path"];
+                        $this->log[] = [date("Y-m-d H:i:s"), "Failed to write update content. $source_path"];
                         return false;
                     };
-                    $this->log[] = [date("Y-m-d H:i:s"), "$content_size bytes written from $upgrade_path to $app_path"];
+                    $this->log[] = [date("Y-m-d H:i:s"), "$content_size bytes written from $release_path to $source_path"];
                 } else {
-                    if (!copy($upgrade_path, $app_path)) {
-                        $this->log[] = [date("Y-m-d H:i:s"), "Failed to copy update content. $app_path"];
+                    if (!copy($release_path, $source_path)) {
+                        $this->log[] = [date("Y-m-d H:i:s"), "Failed to copy update content. $source_path"];
                         return false;
                     };
                 }
             }
         }
 
-        $delete_relative_paths = array_values(array_diff($app_relative_paths, $upgrade_relative_paths));
+        $delete_relative_paths = array_values(array_diff($source_relative_paths, $release_relative_paths));
 
         foreach ($delete_relative_paths as $delete_relative_path) {
             if (is_dir($this->dir . $delete_relative_path)) {
