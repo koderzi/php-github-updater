@@ -236,7 +236,7 @@ final class Updater
         }
         if (true !== is_dir($download_path)) {
             $FolderName = ucfirst($FolderName);
-            if (mkdir($download_path, 0700, true)) {
+            if (mkdir($download_path, 0755, true)) {
                 $this->log[] = [date("Y-m-d H:i:s"), "$FolderName folder created. $download_path"];
             } else {
                 $this->log[] = [date("Y-m-d H:i:s"), "$FolderName folder cannot be created. $download_path"];
