@@ -36,7 +36,7 @@ This will download the package and its dependencies and add them to your vendor 
     require_once "vendor/autoload.php";
 ```
 
-If you're using a framework or other autoloading mechanism, you may not need to include this file manually.
+If you're using a framework or other autoloading mechanism, you may need to include this file manually.
 
 To use this class with direct download, follow these steps:
 
