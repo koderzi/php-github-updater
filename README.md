@@ -61,7 +61,8 @@ To initialize the Updater class and start the update process, follow these steps
         string|null $admin,
         string|null $mailer,
         array|null $sourceExclusions = ['path' => [], 'filename' => []],
-        array|null $releaseExclusions  = ['path' => [], 'filename' => []]
+        array|null $releaseExclusions  = ['path' => [], 'filename' => []],
+        bool $clear = true
     );
 ```
 
@@ -73,6 +74,7 @@ To initialize the Updater class and start the update process, follow these steps
 > `$mailer` (Optional) The email address that the email will be sent from.<br>
 > `$sourceExclusions` (Optional)  An array of directories or files in the source to be exclude from the update.<br>
 > `$releaseExclusions` (Optional) An array of directories or files in the release to exclude from the update.<br>
+> `$clear` (Optional) Clear the downloaded file after the update has completed if set to true.
 
 > The exclusions array keys:
 

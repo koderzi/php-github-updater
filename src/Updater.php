@@ -24,6 +24,7 @@ final class Updater
     private $exclude = [];
     private $log = [];
     private $status;
+    private $clear;
 
     /**
      * Constructs a new instance of the class and starts the update process for the provided version.
@@ -42,7 +43,7 @@ final class Updater
      *      'filename' => an array of release excluded filenames
      * @return void
      */
-    public function __construct(string $username, string $repository, string $token, string $version, string|null $admin = '', string|null $mailer = '', array|null $sourceExclusions  = ['path' => [], 'filename' => []], array|null $releaseExclusions  = ['path' => [], 'filename' => []])
+    public function __construct(string $username, string $repository, string $token, string $version, string|null $admin = '', string|null $mailer = '', array|null $sourceExclusions  = ['path' => [], 'filename' => []], array|null $releaseExclusions  = ['path' => [], 'filename' => []], bool $clear = true)
     {
         $this->status = $this::STARTED;
 
@@ -83,6 +84,7 @@ final class Updater
         $this->admin = $admin;
         $this->mailer = $mailer;
         $this->exclude = ['source' => $sourceExclusions, 'release' =>  $releaseExclusions];
+        $this->clear = $clear;
 
         $this->dir = getcwd();
 
@@ -305,7 +307,7 @@ final class Updater
                 return false;
             }
         } else {
-            $download_file = $this->dir . "/update/update.zip";
+            $download_file = $this->dir . "/update/" . $this->repository . ".zip";
             if (file_exists($download_file)) {
                 $this->log[] = [date("Y-m-d H:i:s"), "Deleting existing zip file. $download_file"];
                 if (!$this->Delete($download_file)) {
@@ -350,7 +352,7 @@ final class Updater
 
     private function Extract()
     {
-        $download_file = $this->dir . "/update/update.zip";
+        $download_file = $this->dir . "/update/" . $this->repository . ".zip";
         $extract_path = $this->dir . "/update/extract";
         if (file_exists($extract_path)) {
             $this->log[] = [date("Y-m-d H:i:s"), "Deleting existing extract folder. $extract_path"];
@@ -483,10 +485,12 @@ final class Updater
             $this->log[] = [date("Y-m-d H:i:s"), "Cleanup failed. " . $this->dir . "/update/extract"];
             return false;
         };
-        if (file_exists($this->dir . "/update/update.zip") && !$this->Delete($this->dir . "/update/update.zip")) {
-            $this->log[] = [date("Y-m-d H:i:s"), "Cleanup failed. " . $this->dir . "/update/update.zip"];
-            return false;
-        };
+        if ($this->clear) {
+            if (file_exists($this->dir . "/update/" . $this->repository . ".zip") && !$this->Delete($this->dir . "/update/" . $this->repository . ".zip")) {
+                $this->log[] = [date("Y-m-d H:i:s"), "Cleanup failed. " . $this->dir . "/update/" . $this->repository . ".zip"];
+                return false;
+            };
+        }
         $this->log[] = [date("Y-m-d H:i:s"), "Cleanup completed."];
         return true;
     }
