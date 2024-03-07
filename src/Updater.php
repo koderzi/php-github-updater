@@ -43,7 +43,7 @@ final class Updater
      *      'filename' => an array of release excluded filenames
      * @return void
      */
-    public function __construct(string $username, string $repository, string $token, string $version, string|null $admin = '', string|null $mailer = '', array|null $sourceExclusions  = ['path' => [], 'filename' => []], array|null $releaseExclusions  = ['path' => [], 'filename' => []], bool $clear = true)
+    public function __construct(string $username, string $repository, string $token, string $version, string|null $admin = '', string|null $mailer = '', array|null $sourceExclusions  = ['path' => [], 'filename' => []], array|null $releaseExclusions  = ['path' => [], 'filename' => []], bool $clear = true, $dir = "")
     {
         $this->status = $this::STARTED;
 
@@ -86,7 +86,11 @@ final class Updater
         $this->exclude = ['source' => $sourceExclusions, 'release' =>  $releaseExclusions];
         $this->clear = $clear;
 
-        $this->dir = getcwd();
+        if($dir != ""){
+            $this->dir = $dir;
+        } else {
+            $this->dir = getcwd();
+        }
 
         $update = $this->Install();
 
@@ -96,17 +100,6 @@ final class Updater
             }
         }
         $this->Log();
-        if ($update == $this::UPDATED) {
-            if (class_exists('Composer\Autoload\ClassLoader')) {
-                if (is_dir(exec('which composer'))) {
-                    exec('composer install -d ' . getcwd());
-                } elseif (file_exists(getcwd() . '/composer.phar')) {
-                    exec('php composer.phar install -d ' . getcwd());
-                } elseif (file_exists(($composer_path = exec('find / -name "composer.phar" 2>/dev/null')))) {
-                    exec('php ' . $composer_path . ' install -d ' . getcwd());
-                }
-            }
-        }
         $this->status = $update;
     }
 
