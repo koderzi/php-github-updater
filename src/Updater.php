@@ -86,7 +86,7 @@ final class Updater
         $this->exclude = ['source' => $sourceExclusions, 'release' =>  $releaseExclusions];
         $this->clear = $clear;
 
-        if($dir != ""){
+        if ($dir != "") {
             $this->dir = $dir;
         } else {
             $this->dir = getcwd();
@@ -378,11 +378,11 @@ final class Updater
         sleep(10);
 
         $source_exclude = [];
-        $source_exclude['path'] = [$this->dir . '/.git', $this->dir . '/update', $this->dir . '/update.lock', $this->dir . '/vendor', $this->dir . '/composer.phar'];
+        $source_exclude['path'] = [$this->dir . '/.git', $this->dir . '/update', $this->dir . '/update.lock', $this->dir . '/vendor'];
         $source_exclude['path'] = array_merge($source_exclude['path'], $this->exclude['source']['path']);
         $source_exclude['path'] = array_unique($source_exclude['path']);
 
-        $source_exclude['filename'] = ['.gitignore'];
+        $source_exclude['filename'] = [];
         $source_exclude['filename'] = array_merge($source_exclude['filename'], $this->exclude['source']['filename']);
         $source_exclude['filename'] = array_unique($source_exclude['filename']);
 
@@ -398,7 +398,7 @@ final class Updater
         $release_exclude = [];
         $release_exclude['path'] = $this->exclude['release']['path'];
 
-        $release_exclude['filename'] = ['.gitignore'];
+        $release_exclude['filename'] = ['composer.phar', '.gitignore', '.gitkeep'];
         $release_exclude['filename'] = array_merge($release_exclude['filename'], $this->exclude['release']['filename']);
         $release_exclude['filename'] = array_unique($release_exclude['filename']);
         $this->log[] = [date("Y-m-d H:i:s"), "Upgrade exclude:\n" . json_encode($release_exclude, JSON_PRETTY_PRINT)];
