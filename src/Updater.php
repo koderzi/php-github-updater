@@ -25,6 +25,7 @@ final class Updater
     private $log = [];
     private $status;
     private $clear;
+    private $archive_relative_paths;
 
     /**
      * Constructs a new instance of the class and starts the update process for the provided version.
@@ -197,6 +198,7 @@ final class Updater
     {
         if (!$this->CleanUp()) {
             $this->log[] = [date("Y-m-d H:i:s"), "Cleanup process failed."];
+            $this->status = $this::ERROR;
         }
         $this->log[] = [date("Y-m-d H:i:s"), "Releasing update lock."];
         if (!file_exists($this->dir . '/update.lock')) {
@@ -360,7 +362,7 @@ final class Updater
             if ($zip->extractTo($extract_path)) {
                 $this->log[] = [date("Y-m-d H:i:s"), "Extraction completed. $extract_path"];
                 $zip->close();
-                rename(glob($extract_path . '/*')[0], $extract_path . '/tmp_' . $this->repository);
+                rename(glob($extract_path . '/*')[0], $extract_path . '/' . $this->repository);
                 return true;
             } else {
                 $this->log[] = [date("Y-m-d H:i:s"), "Extraction failed. $extract_path"];
@@ -403,15 +405,17 @@ final class Updater
         $release_exclude['filename'] = array_unique($release_exclude['filename']);
         $this->log[] = [date("Y-m-d H:i:s"), "Upgrade exclude:\n" . json_encode($release_exclude, JSON_PRETTY_PRINT)];
 
-        $release_paths = $this->MapPath($this->dir . "/update/extract/tmp_{$this->repository}", $release_exclude);
+        $release_paths = $this->MapPath($this->dir . "/update/extract/{$this->repository}", $release_exclude);
         $this->log[] = [date("Y-m-d H:i:s"), "Upgrade lists:\n" . json_encode($release_paths, JSON_PRETTY_PRINT)];
 
         $release_relative_paths = array_map(function ($release_path) {
-            return substr_replace($release_path, '', 0, strlen($this->dir . "/update/extract/tmp_{$this->repository}"));
+            return substr_replace($release_path, '', 0, strlen($this->dir . "/update/extract/{$this->repository}"));
         }, $release_paths);
 
+        $this->archive_relative_paths = $release_relative_paths;
+
         foreach ($release_relative_paths as $release_relative_path) {
-            $release_path = $this->dir . "/update/extract/tmp_{$this->repository}$release_relative_path";
+            $release_path = $this->dir . "/update/extract/{$this->repository}$release_relative_path";
             $source_path = $this->dir . "$release_relative_path";
             if (is_dir($release_path)) {
                 if (!is_dir($source_path)) {
@@ -474,18 +478,59 @@ final class Updater
 
     private function CleanUp()
     {
-        if (file_exists($this->dir . "/update/extract") && !$this->Delete($this->dir . "/update/extract")) {
-            $this->log[] = [date("Y-m-d H:i:s"), "Cleanup failed. " . $this->dir . "/update/extract"];
-            return false;
+        $cleaned = true;
+        if (file_exists($this->dir . "/update/" . $this->repository . ".zip") && !$this->Delete($this->dir . "/update/" . $this->repository . ".zip")) {
+            $this->log[] = [date("Y-m-d H:i:s"), "Failed to delete downloaded zip file. " . $this->dir . "/update/" . $this->repository . ".zip"];
+            $cleaned = false;
         };
-        if ($this->clear) {
-            if (file_exists($this->dir . "/update/" . $this->repository . ".zip") && !$this->Delete($this->dir . "/update/" . $this->repository . ".zip")) {
-                $this->log[] = [date("Y-m-d H:i:s"), "Cleanup failed. " . $this->dir . "/update/" . $this->repository . ".zip"];
-                return false;
-            };
+        if (!$this->clear && $this->status !== $this::ERROR) {
+            $archived = true;
+            $zip = new ZipArchive;
+            $zip_file = $this->dir . "/update/{$this->repository}.zip";
+            if ($zip->open($zip_file, ZipArchive::CREATE) !== true) {
+                $this->log[] = [date("Y-m-d H:i:s"), "Failed to create archive file. $zip_file"];
+                $cleaned = false;
+                $archived = false;
+            }
+            if ($zip->addEmptyDir($this->repository) === false) {
+                $this->log[] = [date("Y-m-d H:i:s"), "Failed to create directory in archive file. {$this->repository}"];
+                $cleaned = false;
+                $archived = false;
+            }
+            foreach ($this->archive_relative_paths as $archive_relative_path) {
+                $release_path = $this->dir . "/update/extract/{$this->repository}$archive_relative_path";
+                if (is_dir($release_path)) {
+                    if ($zip->addEmptyDir($this->repository . $archive_relative_path) === false) {
+                        $this->log[] = [date("Y-m-d H:i:s"), "Failed to create directory in archive file. " . $this->repository . $archive_relative_path];
+                        $cleaned = false;
+                        $archived = false;
+                    }
+                } elseif (is_file($release_path)) {
+                    if ($zip->addFile($release_path, $this->repository . $archive_relative_path) === false) {
+                        $this->log[] = [date("Y-m-d H:i:s"), "Failed to add file to archive file. " . $this->repository . $archive_relative_path];
+                        $cleaned = false;
+                        $archived = false;
+                    };
+                }
+            }
+            $zip->close();
+            if (!$archived) {
+                if (file_exists($zip_file) && !$this->Delete($zip_file)) {
+                    $this->log[] = [date("Y-m-d H:i:s"), "Failed to delete archive file. $zip_file"];
+                    $cleaned = false;
+                };
+            }
         }
-        $this->log[] = [date("Y-m-d H:i:s"), "Cleanup completed."];
-        return true;
+        if (file_exists($this->dir . "/update/extract") && !$this->Delete($this->dir . "/update/extract")) {
+            $this->log[] = [date("Y-m-d H:i:s"), "Failed to delete extracted folder. " . $this->dir . "/update/extract"];
+            $cleaned = false;
+        };
+        if ($cleaned) {
+            $this->log[] = [date("Y-m-d H:i:s"), "Cleanup completed."];
+        } else {
+            $this->log[] = [date("Y-m-d H:i:s"), "Cleanup completed with errors."];
+        }
+        return $cleaned;
     }
 
     private function Install()
@@ -494,51 +539,60 @@ final class Updater
         if (!$this->Lock()) {
             if (file_exists($this->dir . "/update.lock")) {
                 $this->log[] = [date("Y-m-d H:i:s"), "Update already running. Update terminated."];
-                return $this::BUSY;
+                $this->status = $this::BUSY;
+                return $this->status;
             }
             $this->log[] = [date("Y-m-d H:i:s"), "Update lock aquiring failed. Update terminated."];
+            $this->status = $this::ERROR;
             $this->Unlock();
-            return $this::ERROR;
+            return $this->status;
         }
         if (!$this->Folder()) {
             $this->log[] = [date("Y-m-d H:i:s"), "Folder creation process failed. Update terminated."];
+            $this->status = $this::ERROR;
             $this->Unlock();
-            return $this::ERROR;
+            return $this->status;
         }
         if (!$this->Version()) {
             $this->log[] = [date("Y-m-d H:i:s"), "Version check process failed. Update terminated."];
+            $this->status = $this::ERROR;
             $this->Unlock();
-            return $this::ERROR;
+            return $this->status;
         }
         if (!version_compare($this->release, $this->version, '>')) {
             $this->log[] = [date("Y-m-d H:i:s"), "Version already up to date (Release {$this->release}). Update terminated."];
+            $this->status = $this::LATEST;
             $this->Unlock();
-            return $this::LATEST;
+            return $this->status;
         }
         $download_try = 0;
         while (!$this->Download($this->zip_url)) {
             $download_try++;
             if ($download_try > 3) {
                 $this->log[] = [date("Y-m-d H:i:s"), "Download process failed. Update terminated."];
+                $this->status = $this::ERROR;
                 $this->Unlock();
-                return $this::ERROR;
+                return $this->status;
             }
             $this->log[] = [date("Y-m-d H:i:s"), "Unable to retrieve download. Retry in 5 seconds."];
             sleep(5);
         }
         if (!$this->Extract()) {
             $this->log[] = [date("Y-m-d H:i:s"), "Extraction process failed. Update terminated."];
+            $this->status = $this::ERROR;
             $this->Unlock();
-            return $this::ERROR;
+            return $this->status;
         }
         if (!$this->Upgrade()) {
             $this->log[] = [date("Y-m-d H:i:s"), "Upgrade process failed. Update terminated."];
+            $this->status = $this::ERROR;
             $this->Unlock();
-            return $this::ERROR;
+            return $this->status;
         }
         $this->log[] = [date("Y-m-d H:i:s"), "Update completed."];
+        $this->status = $this::UPDATED;
         $this->Unlock();
-        return $this::UPDATED;
+        return $this->status;
     }
 
     private function MapPath($path, $exclude = ['path' => [], 'filename' => []], &$list = [])
