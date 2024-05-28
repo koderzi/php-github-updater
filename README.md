@@ -70,7 +70,7 @@ To initialize the Updater class and start the update process, follow these steps
 > `$username` Your GitHub username.<br>
 > `$repository` The name of your GitHub repository.<br>
 > `$token` The personal access token you generated earlier.<br>
-> `$version` The generated GitHub personal access token for the repository.<br>
+> `$version` The current version number of your project.<br>
 > `$admin` (Optional) The email address of the admin who will receive an email in case of update failure.<br>
 > `$mailer` (Optional) The email address that the email will be sent from.<br>
 > `$sourceExclusions` (Optional)  An array of directories or files in the source to be exclude from the update.<br>
