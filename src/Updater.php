@@ -159,15 +159,15 @@ final class Updater
                     <table>
                         <tr>
                             <td>Username</td>
-                            <td>' . $username . '</td>
+                            <td>' . $this->username . '</td>
                         </tr>
                         <tr>
                             <td>Repository</td>
-                            <td>' . $repository . '</td>
+                            <td>' . $this->repository . '</td>
                         </tr>
                         <tr>
                             <td>Plugin Version</td>
-                            <td>' . $version . '</td>
+                            <td>' . $this->version . '</td>
                         </tr>
                     </table>
                     <p>Update Logs:</p>
