@@ -155,6 +155,21 @@ final class Updater
                 <body>
                     <p>Dear Admin,</p>
                     <p>We regret to inform you that the latest update for the {{ REPOSITORY }} repository has failed. Please take appropriate action to resolve the issue.</p>
+                    <p>Update Info:</p>
+                    <table>
+                        <tr>
+                            <td>Username</td>
+                            <td>' . $username . '</td>
+                        </tr>
+                        <tr>
+                            <td>Repository</td>
+                            <td>' . $repository . '</td>
+                        </tr>
+                        <tr>
+                            <td>Plugin Version</td>
+                            <td>' . $version . '</td>
+                        </tr>
+                    </table>
                     <p>Update Logs:</p>
                     <table>
                         ' . implode("", array_map(function ($entry) {
