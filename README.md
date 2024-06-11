@@ -77,7 +77,7 @@ To initialize the Updater class and start the update process, follow these steps
 > `$sourceExclusions` (Optional)  An array of directories or files in the source to be exclude from the update.<br>
 > `$releaseExclusions` (Optional) An array of directories or files in the release to exclude from the update.<br>
 > `$clear` (Optional) Clear the downloaded file after the update has completed if set to true.<br>
-> `$dir` (Optional) Set the directory of the update. Default to current working dir.
+> `$dir` (Optional) Set the directory of the update. Default to current working dir.<br>
 > `$autoUpdate` (Optional) Whether or not to automatically update the project. Defaults to true.
 
 > The exclusions array keys:
