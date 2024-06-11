@@ -64,6 +64,7 @@ To initialize the Updater class and start the update process, follow these steps
         array|null $releaseExclusions  = ['path' => [], 'filename' => []],
         bool $clear = true,
         string $dir = ""
+        bool $autoUpdate = true
     );
 ```
 
@@ -77,6 +78,7 @@ To initialize the Updater class and start the update process, follow these steps
 > `$releaseExclusions` (Optional) An array of directories or files in the release to exclude from the update.<br>
 > `$clear` (Optional) Clear the downloaded file after the update has completed if set to true.<br>
 > `$dir` (Optional) Set the directory of the update. Default to current working dir.
+> `$autoUpdate` (Optional) Whether or not to automatically update the project. Defaults to true.
 
 > The exclusions array keys:
 
@@ -92,22 +94,33 @@ To initialize the Updater class and start the update process, follow these steps
     ]
 ```
 
-If a new release is available, the class will update your project automatically. 
+To check the release version, use the following code:
+
+```
+    $update->release();
+```
+
+If a new release is available, the class will update your project automatically.
+To update manually, set $autoUpdate to false and use the following code to start update:
+
+```
+    $update->update();
+```
 
 To check the status of the update, use the following code:
- 
+
 ```
     $update->status();
 ```
 
 The update status can have the following int values:
 
-> `Updater::STARTED` (100): Indicates that the update has started.<br>
+> `Updater::INIT` (100): Indicates that update class has been initialized.<br>
 > `Updater::UPDATED` (200): Indicates that the update was successful.<br>
 > `Updater::LATEST` (204): Indicates that the project is already up to date.<br>
 > `Updater::ERROR` (500): Indicates that the update failed.<br>
-> `Updater::BUSY` (504): Indicates that an update process is already in progress.<br>
+> `Updater::BUSY` (504): Indicates that an update process is in progress.<br>
 
 ## Conclusion
 
-The GitHub Release Updater is a simple and efficient way to keep your project up-to-date with the latest releases on GitHub. It is easy to use and can save you a lot of time and effort. If you have any questions or issues, please feel free to contact us.
+The GitHub Release Updater is a simple and efficient way to keep your project up-to-date with the latest releases on GitHub. It is easy to use and can save you a lot of time and effort. If you have any questions or issues, please feel free create an issue.

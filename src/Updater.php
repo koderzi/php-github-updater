@@ -6,7 +6,7 @@ use ZipArchive;
 
 final class Updater
 {
-    const STARTED = 100;
+    const INIT = 100;
     const UPDATED = 200;
     const LATEST = 204;
     const ERROR = 500;
@@ -23,12 +23,12 @@ final class Updater
     private $dir;
     private $exclude = [];
     private $log = [];
-    private $status;
+    private $status = self::ERROR;
     private $clear;
     private $archive_relative_paths;
 
     /**
-     * Constructs a new instance of the class and starts the update process for the provided version.
+     * Constructs a new instance of the updater class.
      *
      * @param string $username Your GitHub username.
      * @param string $repository The name of your GitHub repository.
@@ -42,12 +42,13 @@ final class Updater
      * @param array|null $releaseExclusions (Optional) An array of directories or files in the release to exclude from the update. The array keys:
      *      'path' => an array of release excluded paths
      *      'filename' => an array of release excluded filenames
+     * @param bool $clear (Optional) Whether or not to clear the downloaded file. Defaults to true.
+     * @param string $dir (Optional) The directory where the update will occur. Defaults to current working directory.
+     * @param bool $autoUpdate (Optional) Whether or not to automatically update the project. Defaults to true.
      * @return void
      */
-    public function __construct(string $username, string $repository, string $token, string $version, string|null $admin = '', string|null $mailer = '', array|null $sourceExclusions  = ['path' => [], 'filename' => []], array|null $releaseExclusions  = ['path' => [], 'filename' => []], bool $clear = true, $dir = "")
+    public function __construct(string $username, string $repository, string $token, string $version, string|null $admin = '', string|null $mailer = '', array|null $sourceExclusions  = ['path' => [], 'filename' => []], array|null $releaseExclusions  = ['path' => [], 'filename' => []], bool $clear = true, $dir = "", $autoUpdate = true)
     {
-        $this->status = $this::STARTED;
-
         if ($admin == null) {
             $this->admin = '';
         }
@@ -63,6 +64,7 @@ final class Updater
         if (!isset($sourceExclusions['path'])) {
             $sourceExclusions['path'] = [];
         }
+
         if (!isset($sourceExclusions['filename'])) {
             $sourceExclusions['filename'] = [];
         }
@@ -93,6 +95,49 @@ final class Updater
             $this->dir = getcwd();
         }
 
+        $this->status = $this::INIT;
+
+        if ($autoUpdate) {
+            $this->update();
+        }
+    }
+
+    /**
+     * Retrieves the status of the updater.
+     *
+     * @return int One of the following status codes:
+     *  - `INIT` (100): Indicates that update class has been initialized.
+     *  - `UPDATED` (200): Indicates that the update was successful.
+     *  - `LATEST` (204): Indicates that the project is already up to date.
+     *  - `ERROR` (500): Indicates that the update failed.
+     *  - `BUSY` (504): Indicates that an update process is already in progress.
+     */
+    public function status()
+    {
+        return $this->status;
+    }
+
+    /**
+     * Retrieves the release version.
+     *
+     * @return mixed The release version if the information retrieved successfully, otherwise false.
+     */
+    public function release()
+    {
+        if ($this->Download()) {
+            return $this->release;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * Executes update.
+     *
+     * @return void
+     */
+    public function update()
+    {
         $update = $this->Install();
 
         if ($update == $this::ERROR) {
@@ -102,21 +147,6 @@ final class Updater
         }
         $this->Log();
         $this->status = $update;
-    }
-
-    /**
-     * Retrieves the status of the updater.
-     *
-     * @return int One of the following status codes:
-     *  - `STARTED` (100): Indicates that the update has started.
-     *  - `UPDATED` (200): Indicates that the update was successful.
-     *  - `LATEST` (204): Indicates that the project is already up to date.
-     *  - `ERROR` (500): Indicates that the update failed.
-     *  - `BUSY` (504): Indicates that an update process is already in progress.
-     */
-    public function status()
-    {
-        return $this->status;
     }
 
     private function Log()
