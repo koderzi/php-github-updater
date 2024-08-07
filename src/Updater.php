@@ -120,15 +120,11 @@ final class Updater
     /**
      * Retrieves the release version.
      *
-     * @return mixed The release version if the information retrieved successfully, otherwise false.
+     * @return string|false The release version if the information retrieved successfully, otherwise false.
      */
     public function release()
     {
-        if ($this->Download()) {
-            return $this->release;
-        } else {
-            return false;
-        }
+        return $this->Download() ? $this->release : false;
     }
 
     /**
