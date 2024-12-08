@@ -25,6 +25,7 @@ final class Updater
     private $log = [];
     private $status = self::ERROR;
     private $clear;
+    private $maxLogs;
     private $archive_relative_paths;
 
     /**
@@ -47,14 +48,18 @@ final class Updater
      * @param bool $autoUpdate (Optional) Whether or not to automatically update the project. Defaults to true.
      * @return void
      */
-    public function __construct(string $username, string $repository, string $token, string $version, string|null $admin = '', string|null $mailer = '', array|null $sourceExclusions  = ['path' => [], 'filename' => []], array|null $releaseExclusions  = ['path' => [], 'filename' => []], bool $clear = true, $dir = "", $autoUpdate = true)
+    public function __construct(string $username, string $repository, string $token, string $version, string|null $admin = '', string|null $mailer = '', array|null $sourceExclusions  = ['path' => [], 'filename' => []], array|null $releaseExclusions  = ['path' => [], 'filename' => []], bool $clear = true, $dir = "", $autoUpdate = true, $maxLogs = 30)
     {
         if ($admin == null) {
             $this->admin = '';
+        } else {
+            $this->admin = $admin;
         }
 
         if ($mailer == null) {
             $this->mailer = '';
+        } else {
+            $this->mailer = $mailer;
         }
 
         if ($sourceExclusions == null) {
@@ -84,8 +89,6 @@ final class Updater
         $this->repository = $repository;
         $this->token = $token;
         $this->version = $version;
-        $this->admin = $admin;
-        $this->mailer = $mailer;
         $this->exclude = ['source' => $sourceExclusions, 'release' =>  $releaseExclusions];
         $this->clear = $clear;
 
@@ -95,11 +98,14 @@ final class Updater
             $this->dir = getcwd();
         }
 
+        $this->maxLogs = $maxLogs;
+
         $this->status = $this::INIT;
 
         if ($autoUpdate) {
             $this->update();
         }
+        $this->Log();
     }
 
     /**
@@ -141,12 +147,26 @@ final class Updater
                 $this->Mail();
             }
         }
-        $this->Log();
         $this->status = $update;
     }
 
     private function Log()
     {
+        $logFiles = $this->MapPath($this->dir . "/update/log", ['filename' => ['.htaccess']]);
+        $this->log[] = [date("Y-m-d H:i:s"), "Log lists:\n" . json_encode($logFiles, JSON_PRETTY_PRINT)];
+        $logFiles = array_reverse($logFiles);
+        $this->log[] = [date("Y-m-d H:i:s"), "Log lists:\n" . json_encode($logFiles, JSON_PRETTY_PRINT)];
+        if (count($logFiles) >= $this->maxLogs) {
+            while (count($logFiles) >= $this->maxLogs) {
+                $logFileToRemove = array_pop($logFiles);
+                $this->log[] = [date("Y-m-d H:i:s"), "Deleting log file: $logFileToRemove"];
+                if (file_exists($logFileToRemove)) {
+                    unlink($logFileToRemove);
+                }
+            }
+        } else {
+            $this->log[] = [date("Y-m-d H:i:s"), "No excess log files to delete"];
+        }
         $log = implode("\n", array_map(function ($entry) {
             return "{$entry[0]}: {$entry[1]}";
         }, $this->log));
@@ -282,6 +302,22 @@ final class Updater
             }
         }
         return true;
+    }
+
+    private function CreateFile(string $FileName, string $FilePath = '', string $Content = '')
+    {
+        if ($FilePath == '') {
+            $download_path = $this->dir . '/' . $FileName;
+        } else {
+            $download_path = $this->dir . '/' . trim($FilePath, '/') . '/' . $FileName;
+        }
+        if (file_put_contents($download_path, $Content) !== false) {
+            $this->log[] = [date("Y-m-d H:i:s"), "$FileName file created. $download_path"];
+            return true;
+        } else {
+            $this->log[] = [date("Y-m-d H:i:s"), "$FileName file cannot be created. $download_path"];
+            return false;
+        }
     }
 
     private function Version()
@@ -593,6 +629,15 @@ final class Updater
             $this->status = $this::ERROR;
             $this->Unlock();
             return $this->status;
+        }
+        $htaccess_path = $this->dir . '/update/log/.htaccess';
+        if (!file_exists($htaccess_path) || file_get_contents($htaccess_path) !== "Order Deny,Allow\nDeny from all") {
+            if (!$this->CreateFile('.htaccess', 'update/log', "Order Deny,Allow\nDeny from all")) {
+                $this->log[] = [date("Y-m-d H:i:s"), ".htaccess creation process failed. Update terminated."];
+                $this->status = $this::ERROR;
+                $this->Unlock();
+                return $this->status;
+            }
         }
         if (!$this->Version()) {
             $this->log[] = [date("Y-m-d H:i:s"), "Version check process failed. Update terminated."];
