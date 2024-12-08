@@ -46,9 +46,10 @@ final class Updater
      * @param bool $clear (Optional) Whether or not to clear the downloaded file. Defaults to true.
      * @param string $dir (Optional) The directory where the update will occur. Defaults to current working directory.
      * @param bool $autoUpdate (Optional) Whether or not to automatically update the project. Defaults to true.
+     * @param int $maxLogs (Optional) Maximum number of log file to maintain. Defaults to 30.
      * @return void
      */
-    public function __construct(string $username, string $repository, string $token, string $version, string|null $admin = '', string|null $mailer = '', array|null $sourceExclusions  = ['path' => [], 'filename' => []], array|null $releaseExclusions  = ['path' => [], 'filename' => []], bool $clear = true, $dir = "", $autoUpdate = true, $maxLogs = 30)
+    public function __construct(string $username, string $repository, string $token, string $version, string|null $admin = '', string|null $mailer = '', array|null $sourceExclusions  = ['path' => [], 'filename' => []], array|null $releaseExclusions  = ['path' => [], 'filename' => []], bool $clear = true, string $dir = "", bool $autoUpdate = true, int $maxLogs = 30)
     {
         if ($admin == null) {
             $this->admin = '';
