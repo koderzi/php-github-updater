@@ -154,10 +154,9 @@ final class Updater
     private function Log()
     {
         $logFiles = $this->MapPath($this->dir . "/update/log", ['filename' => ['.htaccess']]);
-        $this->log[] = [date("Y-m-d H:i:s"), "Log lists:\n" . json_encode($logFiles, JSON_PRETTY_PRINT)];
         $logFiles = array_reverse($logFiles);
-        $this->log[] = [date("Y-m-d H:i:s"), "Log lists:\n" . json_encode($logFiles, JSON_PRETTY_PRINT)];
         if (count($logFiles) >= $this->maxLogs) {
+            $this->log[] = [date("Y-m-d H:i:s"), "Deleting excess log files"];
             while (count($logFiles) >= $this->maxLogs) {
                 $logFileToRemove = array_pop($logFiles);
                 $this->log[] = [date("Y-m-d H:i:s"), "Deleting log file: $logFileToRemove"];
@@ -168,6 +167,7 @@ final class Updater
         } else {
             $this->log[] = [date("Y-m-d H:i:s"), "No excess log files to delete"];
         }
+        $this->log[] = [date("Y-m-d H:i:s"), "Saving log file"];
         $log = implode("\n", array_map(function ($entry) {
             return "{$entry[0]}: {$entry[1]}";
         }, $this->log));
