@@ -27,6 +27,7 @@ final class Updater
     private $clear;
     private $maxLogs;
     private $archive_relative_paths;
+    private $info = "";
 
     /**
      * Constructs a new instance of the updater class.
@@ -49,7 +50,7 @@ final class Updater
      * @param int $maxLogs (Optional) Maximum number of log file to maintain. Defaults to 30.
      * @return void
      */
-    public function __construct(string $username, string $repository, string $token, string $version, string|null $admin = '', string|null $mailer = '', array|null $sourceExclusions  = ['path' => [], 'filename' => []], array|null $releaseExclusions  = ['path' => [], 'filename' => []], bool $clear = true, string $dir = "", bool $autoUpdate = true, int $maxLogs = 30)
+    public function __construct(string $username, string $repository, string $token, string $version, string|null $admin = '', string|null $mailer = '', array|null $sourceExclusions  = ['path' => [], 'filename' => []], array|null $releaseExclusions  = ['path' => [], 'filename' => []], bool $clear = true, string $dir = "", bool $autoUpdate = true, int $maxLogs = 30, string $info = "")
     {
         if ($admin == null) {
             $this->admin = '';
@@ -100,6 +101,7 @@ final class Updater
         }
 
         $this->maxLogs = $maxLogs;
+        $this->info = $info;
 
         $this->status = $this::INIT;
 
@@ -215,6 +217,10 @@ final class Updater
                         <tr>
                             <td>Plugin Version</td>
                             <td>' . $this->version . '</td>
+                        </tr>
+                        <tr>
+                            <td>Additional Info</td>
+                            <td>' . $this->info . '</td> 
                         </tr>
                     </table>
                     <p>Update Logs:</p>
