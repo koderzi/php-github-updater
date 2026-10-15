@@ -81,6 +81,8 @@ To initialize the Updater class and start the update process, follow these steps
 > `$autoUpdate` (Optional) Whether or not to automatically update the project. Defaults to true.<br>
 > `$maxLogs` (Optional) Maximum number of log file to maintain. Defaults to 30.
 
+> Working files go in `update/` under `$dir`: logs in `update/.log/` and the unpacked release in `update/.extract/`. They are dot-folders so that web servers that refuse dot-paths (most nginx setups) do not serve them; `update/.log/` also gets a deny-all `.htaccess` for Apache. Logs from versions before this change stay in `update/log/` and can be deleted.
+
 > The exclusions array keys:
 
 ```
