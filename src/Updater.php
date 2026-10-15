@@ -12,6 +12,9 @@ final class Updater
     const ERROR = 500;
     const BUSY = 504;
 
+    /** Seconds after which an update lock is considered abandoned. */
+    const LOCK_TTL = 1800;
+
     private $username;
     private $repository;
     private $token;
@@ -155,7 +158,7 @@ final class Updater
 
     private function Log()
     {
-        $logFiles = $this->MapPath($this->dir . "/update/log", ['filename' => ['.htaccess']]);
+        $logFiles = $this->MapPath($this->dir . "/update/.log", ['filename' => ['.htaccess']]);
         $logFiles = array_reverse($logFiles);
         if (count($logFiles) >= $this->maxLogs) {
             $this->log[] = [date("Y-m-d H:i:s"), "Deleting excess log files"];
@@ -173,7 +176,16 @@ final class Updater
         $log = implode("\n", array_map(function ($entry) {
             return "{$entry[0]}: {$entry[1]}";
         }, $this->log));
-        file_put_contents($this->dir . "/update/log/" . date("Y-m-d H:i:s") . ".txt", $log);
+        file_put_contents($this->dir . "/update/.log/" . date("Y-m-d H:i:s") . ".txt", $log);
+    }
+
+    /**
+     * Escapes a value for the HTML failure email. Log lines include the GitHub
+     * release data, so nothing reaches the email as markup.
+     */
+    private function esc($value)
+    {
+        return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
     }
 
     private function Mail()
@@ -208,15 +220,15 @@ final class Updater
                     <table>
                         <tr>
                             <td>Username</td>
-                            <td>' . $this->username . '</td>
+                            <td>' . $this->esc($this->username) . '</td>
                         </tr>
                         <tr>
                             <td>Repository</td>
-                            <td>' . $this->repository . '</td>
+                            <td>' . $this->esc($this->repository) . '</td>
                         </tr>
                         <tr>
                             <td>Plugin Version</td>
-                            <td>' . $this->version . '</td>
+                            <td>' . $this->esc($this->version) . '</td>
                         </tr>
                         <tr>
                             <td>Additional Info</td>
@@ -226,14 +238,14 @@ final class Updater
                     <p>Update Logs:</p>
                     <table>
                         ' . implode("", array_map(function ($entry) {
-                return "<tr><td>{$entry[0]}</td><td>{$entry[1]}</td></tr>";
+                return '<tr><td>' . $this->esc($entry[0]) . '</td><td><pre>' . $this->esc($entry[1]) . '</pre></td></tr>';
             }, $this->log)) . '
                     </table>
                     <p>Thank you for your attention to this matter.</p>
                     <p>Best regards</p>
                 </body>
             </html>';
-        $html_message = str_replace("{{ REPOSITORY }}", $this->repository, $html_message);
+        $html_message = str_replace("{{ REPOSITORY }}", $this->esc($this->repository), $html_message);
         if (mail($this->admin, $subject, $html_message, $headers)) {
             $this->log[] = [date("Y-m-d H:i:s"), "Email sent to {$this->admin}"];
         } else {
@@ -247,18 +259,24 @@ final class Updater
             $this->log[]    = 'created update';
             return false;
         }
-        if (!$this->CreateFolder('log', '/update')) {
+        if (!$this->CreateFolder('.log', '/update')) {
             $this->log[]    = 'created log';
             return false;
         }
-        for ($i = 0; $i < 3; $i++) {
-            if (!file_exists($this->dir . '/update.lock') && file_put_contents($this->dir . '/update.lock', '') !== false) {
-                $this->log[] = [date("Y-m-d H:i:s"), "Update lock acquired."];
-                return true;
-            }
-            $this->log[] = [date("Y-m-d H:i:s"), "Failed to acquire update lock. Retry in 10 seconds."];
-            sleep(10);
+        $lock = $this->dir . '/update.lock';
+        // A run killed mid-update (timeout, memory limit) never removes its
+        // lock; one older than any real run is stale and is taken over.
+        if (file_exists($lock) && filemtime($lock) < time() - self::LOCK_TTL) {
+            $this->log[] = [date("Y-m-d H:i:s"), "Removing stale update lock."];
+            @unlink($lock);
         }
+        // One attempt: a lock held by a live run means that run is doing the
+        // update, so waiting for it only blocks this request.
+        if (!file_exists($lock) && file_put_contents($lock, '') !== false) {
+            $this->log[] = [date("Y-m-d H:i:s"), "Update lock acquired."];
+            return true;
+        }
+        $this->log[] = [date("Y-m-d H:i:s"), "Failed to acquire update lock."];
         return false;
     }
 
@@ -283,10 +301,10 @@ final class Updater
         if (!$this->CreateFolder('update')) {
             return false;
         }
-        if (!$this->CreateFolder('log', '/update')) {
+        if (!$this->CreateFolder('.log', '/update')) {
             return false;
         }
-        if (!$this->CreateFolder('extract', '/update')) {
+        if (!$this->CreateFolder('.extract', '/update')) {
             return false;
         }
         return true;
@@ -367,6 +385,9 @@ final class Updater
                 $this->log[] = [date("Y-m-d H:i:s"), "Curl return type initialization failed."];
                 return false;
             };
+            // Never let a hung api.github.com block the cron/admin worker forever.
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 60);
             if (($exec = curl_exec($ch)) == false) {
                 $this->log[] = [date("Y-m-d H:i:s"), "Curl execution failed."];
                 return false;
@@ -410,6 +431,10 @@ final class Updater
                 $this->log[] = [date("Y-m-d H:i:s"), "Curl follow location initialization failed."];
                 return false;
             };
+            // Cap connect + total time so a stalled CDN cannot hang the request
+            // indefinitely (a release zip is small; 300s is generous).
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 300);
             if (($exec = curl_exec($ch)) == false) {
                 $this->log[] = [date("Y-m-d H:i:s"), "Curl execution failed."];
                 return false;
@@ -432,7 +457,7 @@ final class Updater
     private function Extract()
     {
         $download_file = $this->dir . "/update/" . $this->repository . ".zip";
-        $extract_path = $this->dir . "/update/extract";
+        $extract_path = $this->dir . "/update/.extract";
         if (file_exists($extract_path)) {
             $this->log[] = [date("Y-m-d H:i:s"), "Deleting existing extract folder. $extract_path"];
             if (!$this->Delete($extract_path)) {
@@ -446,7 +471,15 @@ final class Updater
             if ($zip->extractTo($extract_path)) {
                 $this->log[] = [date("Y-m-d H:i:s"), "Extraction completed. $extract_path"];
                 $zip->close();
-                rename(glob($extract_path . '/*')[0], $extract_path . '/' . $this->repository);
+                $extracted = glob($extract_path . '/*');
+                if (empty($extracted)) {
+                    $this->log[] = [date("Y-m-d H:i:s"), "Extracted folder is empty. $extract_path"];
+                    return false;
+                }
+                if (!rename($extracted[0], $extract_path . '/' . $this->repository)) {
+                    $this->log[] = [date("Y-m-d H:i:s"), "Failed to normalise extracted folder name."];
+                    return false;
+                }
                 return true;
             } else {
                 $this->log[] = [date("Y-m-d H:i:s"), "Extraction failed. $extract_path"];
@@ -461,8 +494,6 @@ final class Updater
 
     private function Upgrade()
     {
-        sleep(10);
-
         $source_exclude = [];
         $source_exclude['path'] = [$this->dir . '/.git', $this->dir . '/update', $this->dir . '/update.lock', $this->dir . '/vendor'];
         $source_exclude['path'] = array_merge($source_exclude['path'], $this->exclude['source']['path']);
@@ -489,17 +520,17 @@ final class Updater
         $release_exclude['filename'] = array_unique($release_exclude['filename']);
         $this->log[] = [date("Y-m-d H:i:s"), "Upgrade exclude:\n" . json_encode($release_exclude, JSON_PRETTY_PRINT)];
 
-        $release_paths = $this->MapPath($this->dir . "/update/extract/{$this->repository}", $release_exclude);
+        $release_paths = $this->MapPath($this->dir . "/update/.extract/{$this->repository}", $release_exclude);
         $this->log[] = [date("Y-m-d H:i:s"), "Upgrade lists:\n" . json_encode($release_paths, JSON_PRETTY_PRINT)];
 
         $release_relative_paths = array_map(function ($release_path) {
-            return substr_replace($release_path, '', 0, strlen($this->dir . "/update/extract/{$this->repository}"));
+            return substr_replace($release_path, '', 0, strlen($this->dir . "/update/.extract/{$this->repository}"));
         }, $release_paths);
 
         $this->archive_relative_paths = $release_relative_paths;
 
         foreach ($release_relative_paths as $release_relative_path) {
-            $release_path = $this->dir . "/update/extract/{$this->repository}$release_relative_path";
+            $release_path = $this->dir . "/update/.extract/{$this->repository}$release_relative_path";
             $source_path = $this->dir . "$release_relative_path";
             if (is_dir($release_path)) {
                 if (!is_dir($source_path)) {
@@ -511,24 +542,12 @@ final class Updater
                     }
                 }
             } elseif (is_file($release_path)) {
-                if (is_file($source_path)) {
-                    $release_content = file_get_contents($release_path, true);
-                    if ($release_content === false) {
-                        $this->log[] = [date("Y-m-d H:i:s"), "Failed to retrieve update content. $release_path"];
-                        return false;
-                    };
-                    $content_size = file_put_contents($source_path, $release_content);
-                    if ($content_size === false) {
-                        $this->log[] = [date("Y-m-d H:i:s"), "Failed to write update content. $source_path"];
-                        return false;
-                    };
-                    $this->log[] = [date("Y-m-d H:i:s"), "$content_size bytes written from $release_path to $source_path"];
-                } else {
-                    if (!copy($release_path, $source_path)) {
-                        $this->log[] = [date("Y-m-d H:i:s"), "Failed to copy update content. $source_path"];
-                        return false;
-                    };
+                // copy() streams the file instead of reading it into memory.
+                if (!copy($release_path, $source_path)) {
+                    $this->log[] = [date("Y-m-d H:i:s"), "Failed to copy update content. $source_path"];
+                    return false;
                 }
+                $this->log[] = [date("Y-m-d H:i:s"), "Copied $release_path to $source_path"];
             }
         }
 
@@ -563,11 +582,19 @@ final class Updater
     private function CleanUp()
     {
         $cleaned = true;
+        // update/<repository>.zip is both the download and, afterwards, the
+        // installable archive of the installed release. A run that found the
+        // release already installed downloaded nothing: the archive is left
+        // as it is, rather than replaced by an empty one.
+        if ($this->status === $this::LATEST) {
+            $this->log[] = [date("Y-m-d H:i:s"), "Cleanup completed."];
+            return true;
+        }
         if (file_exists($this->dir . "/update/" . $this->repository . ".zip") && !$this->Delete($this->dir . "/update/" . $this->repository . ".zip")) {
             $this->log[] = [date("Y-m-d H:i:s"), "Failed to delete downloaded zip file. " . $this->dir . "/update/" . $this->repository . ".zip"];
             $cleaned = false;
         };
-        if (!$this->clear && $this->status !== $this::ERROR) {
+        if (!$this->clear && $this->status !== $this::ERROR && is_array($this->archive_relative_paths)) {
             $archived = true;
             $zip = new ZipArchive;
             $zip_file = $this->dir . "/update/{$this->repository}.zip";
@@ -582,7 +609,7 @@ final class Updater
                 $archived = false;
             }
             foreach ($this->archive_relative_paths as $archive_relative_path) {
-                $release_path = $this->dir . "/update/extract/{$this->repository}$archive_relative_path";
+                $release_path = $this->dir . "/update/.extract/{$this->repository}$archive_relative_path";
                 if (is_dir($release_path)) {
                     if ($zip->addEmptyDir($this->repository . $archive_relative_path) === false) {
                         $this->log[] = [date("Y-m-d H:i:s"), "Failed to create directory in archive file. " . $this->repository . $archive_relative_path];
@@ -605,8 +632,8 @@ final class Updater
                 };
             }
         }
-        if (file_exists($this->dir . "/update/extract") && !$this->Delete($this->dir . "/update/extract")) {
-            $this->log[] = [date("Y-m-d H:i:s"), "Failed to delete extracted folder. " . $this->dir . "/update/extract"];
+        if (file_exists($this->dir . "/update/.extract") && !$this->Delete($this->dir . "/update/.extract")) {
+            $this->log[] = [date("Y-m-d H:i:s"), "Failed to delete extracted folder. " . $this->dir . "/update/.extract"];
             $cleaned = false;
         };
         if ($cleaned) {
@@ -637,9 +664,9 @@ final class Updater
             $this->Unlock();
             return $this->status;
         }
-        $htaccess_path = $this->dir . '/update/log/.htaccess';
+        $htaccess_path = $this->dir . '/update/.log/.htaccess';
         if (!file_exists($htaccess_path) || file_get_contents($htaccess_path) !== "Order Deny,Allow\nDeny from all") {
-            if (!$this->CreateFile('.htaccess', 'update/log', "Order Deny,Allow\nDeny from all")) {
+            if (!$this->CreateFile('.htaccess', 'update/.log', "Order Deny,Allow\nDeny from all")) {
                 $this->log[] = [date("Y-m-d H:i:s"), ".htaccess creation process failed. Update terminated."];
                 $this->status = $this::ERROR;
                 $this->Unlock();
